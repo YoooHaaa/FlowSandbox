@@ -1,0 +1,10 @@
+@startuml exec_env_class
+scale 2
+class ExecEnv {
+    String device_model
+    String sdk_level
+    String traffic_type
+    String ip
+    String gps
+}
+@enduml

@@ -1,0 +1,219 @@
+# !/usr/bin/env python3
+# -*-coding:utf-8 -*-
+
+"""
+# File       : kuaishou_ad_cap.py
+# Time       ：10/31/20 15:30
+# Author     ：Rodney Cheung
+"""
+import json
+import os
+import re
+from typing import Dict
+
+from mitmproxy import http
+
+from tweezer.config.config import Configor
+from tweezer.core.runtime_event import RuntimeEvent, RuntimeEventType
+from tweezer.model.ad_info import AdEvidence, OptionalAdEvidence, AdInfo
+from tweezer.model.ad_sdk import AdSdkInfo, AdSdkType
+from tweezer.plugins.base.base_ad_plugin import BaseAdPlugin
+from tweezer.resource.resource import PackageResource
+from tweezer.util.output import OutputUtil
+from tweezer.util.wrapper import dict_get
+from wisbec.console import shell
+from wisbec.filesystem.filesystem import FilesystemUtil
+from wisbec.logging.log import Log
+
+
+class KuaishouAdCap(BaseAdPlugin):
+    def load_conf(self):
+        conf = Configor.get_ad_cap_conf(AdSdkType.kuaishou)
+        self.m_screen_cap_delay_time = conf['capture_delay_time']
+
+    def get_sdk_info(self):
+        self.m_sdk_info = AdSdkInfo(AdSdkType.kuaishou.chinese_name(), '0.6')
+
+    def register_event(self):
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.RESPONSE, callback=self.__cb_response)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.SWITCHED_APP, callback=self.__cb_switch_app)
+
+    def run(self):
+        self.register_event()
+
+    def __init__(self):
+        super().__init__()
+        self.m_ad_info_map: Dict[str, AdInfo] = dict()
+
+    def __cb_switch_app(self, event_type, **kwargs):
+        self.m_top_app = kwargs['pkg']
+        self.flush_app_info()
+
+    def __cb_response(self, event_type, **kwargs):
+        flow: http.HTTPFlow = kwargs['flow']
+        if self.__parse_univ_response(flow):
+            return
+        if self.__parse_feed_response(flow):
+            return
+        if self.__match_ad_url_access(flow):
+            return
+
+    @staticmethod
+    def __decrypt(content: str) -> str:
+        code, out, err = shell.exec_jar(PackageResource.get_decrypt_jar_path(), ['kuaishou', content])
+        if code != 0:
+            Log.error('kuaishou decrypt err:{}', err)
+            return ''
+        return out
+
+    def __decrypt_imp_ad_info(self, flow: http.HTTPFlow, url_pattern: str) -> (bool, list):
+        url = flow.request.url
+        if not re.fullmatch(url_pattern, url):
+            return False, None
+        flow.response.decode()
+        if not flow.response.content:
+            return True, None
+        loaded = json.loads(flow.response.content)
+        fmt_json = json.dumps(loaded, indent=4, ensure_ascii=False)
+        crypt_imp_ad_info = dict_get(loaded, 'impAdInfo')
+        if crypt_imp_ad_info is None or crypt_imp_ad_info == '':
+            self.persist_err_content(fmt_json, self.get_err_save_path('kuaishou_err_response.txt'))
+            return True, None
+        decrypt_imp_ad_info_str = self.__decrypt(crypt_imp_ad_info)
+        if decrypt_imp_ad_info_str == '':
+            return True, None
+        decrypt_imp_ad_info_list = json.loads(decrypt_imp_ad_info_str)
+        return True, decrypt_imp_ad_info_list
+
+    def __parse_univ_response_impl(self, decrypt_imp_ad_info_list: list):
+        for decrypt_imp_ad_info in decrypt_imp_ad_info_list:
+            fmt_json = json.dumps(decrypt_imp_ad_info, indent=4, ensure_ascii=False)
+            ad_evidence = AdEvidence()
+            optional_ad_evidence = OptionalAdEvidence()
+            ad_info_list = dict_get(decrypt_imp_ad_info, 'adInfo')
+            if ad_info_list is None:
+                self.persist_err_content(fmt_json, self.get_err_save_path('kuaishou_err_response.txt'))
+                Log.debug('adInfo err')
+                return
+            for ad_info in ad_info_list:
+                ad_convertion_info = dict_get(ad_info, 'adConversionInfo')
+                if ad_convertion_info is None:
+                    self.persist_err_content(fmt_json, self.get_err_save_path('kuaishou_err_response.txt'))
+                    Log.debug('adConversionInfo err')
+                else:
+                    # 广告URL记为app下载URL
+                    ad_evidence.ad_url = dict_get(ad_convertion_info, 'appDownloadUrl')
+                # adBaseInfo
+                ad_base_info = dict_get(ad_info, 'adBaseInfo')
+                if ad_base_info is None:
+                    self.persist_err_content(fmt_json, self.get_err_save_path('kuaishou_err_response.txt'))
+                    Log.debug('adBaseInfo err')
+                else:
+                    ad_evidence.description = dict_get(ad_base_info, 'adDescription')
+                    title = dict_get(ad_base_info, 'productName')
+                    if title is None:
+                        title = dict_get(ad_base_info, 'appName')
+                    ad_evidence.title = title
+                    app_icon_url = dict_get(ad_base_info, 'appIconUrl')
+                    if app_icon_url is not None:
+                        ad_evidence.ad_pic_url_list.append(app_icon_url)
+                    app_image_url = dict_get(ad_base_info, 'appImageUrl')
+                    if len(app_image_url) > 0:
+                        ad_evidence.ad_pic_url_list.extend(app_image_url)
+                    optional_ad_evidence.cooperation_name = dict_get(ad_base_info, 'corporationName')
+                # adMaterialInfo
+                ad_material_info = dict_get(ad_info, 'adMaterialInfo')
+                if ad_material_info is None:
+                    self.persist_err_content(fmt_json, self.get_err_save_path('kuaishou_err_response.txt'))
+                    Log.debug('adMaterialInfo err')
+                else:
+                    material_features = dict_get(ad_material_info, 'materialFeature')
+                    for material_feature in material_features:
+                        material_url = dict_get(material_feature, 'materialUrl')
+                        if material_url is not None:
+                            ad_evidence.ad_pic_url_list.append(material_url)
+                        cover_url = dict_get(material_feature, 'coverUrl')
+                        if cover_url is not None:
+                            ad_evidence.ad_pic_url_list.append(cover_url)
+                        first_frame = dict_get(material_feature, 'firstFrame')
+                        if first_frame is not None:
+                            ad_evidence.ad_pic_url_list.append(first_frame)
+                        material_size = dict_get(material_feature, 'materialSize')
+                        if material_size is not None:
+                            optional_ad_evidence.ad_height = dict_get(material_size, 'height')
+                            optional_ad_evidence.ad_width = dict_get(material_size, 'width')
+                Log.debug('快手广告解析完成')
+                self.persist_ad_info(AdInfo(ad_evidence=ad_evidence, optional_ad_evidence=optional_ad_evidence))
+
+    def __parse_univ_response(self, flow: http.HTTPFlow) -> bool:
+        is_suc, decrypt_imp_ad_info_list = self.__decrypt_imp_ad_info(flow,
+                                                                      'https://open.e.kuaishou.com/rest/e/v3/open/univ')
+        if decrypt_imp_ad_info_list is None:
+            return is_suc
+        else:
+            self.__parse_univ_response_impl(decrypt_imp_ad_info_list)
+            return True
+
+    def __parse_feed_response_impl(self, decrypt_imp_ad_info_list: list):
+        for decrypt_imp_ad_info in decrypt_imp_ad_info_list:
+            fmt_json = json.dumps(decrypt_imp_ad_info, indent=4, ensure_ascii=False)
+            ad_evidence = AdEvidence()
+            optional_ad_evidence = OptionalAdEvidence()
+            photo_info = dict_get(decrypt_imp_ad_info, 'photoInfo')
+            if photo_info is None:
+                self.persist_err_content(fmt_json, self.get_err_save_path('kuaishou_err_response.txt'))
+                Log.debug('photoInfo err')
+                return
+            base_info = dict_get(photo_info, 'baseInfo')
+            if base_info is None:
+                self.persist_err_content(fmt_json, self.get_err_save_path('kuaishou_err_response.txt'))
+                Log.debug('baseInfo err')
+            else:
+                ad_evidence.title = dict_get(base_info, 'title')
+                ad_evidence.description = dict_get(base_info, 'videoDesc')
+            video_info = dict_get(photo_info, 'videoInfo')
+            if video_info is None:
+                self.persist_err_content(fmt_json, self.get_err_save_path('kuaishou_err_response.txt'))
+                Log.debug('videoInfo err')
+            else:
+                ad_evidence.ad_url = dict_get(video_info, 'videoUrl')
+                first_frame = dict_get(video_info, 'firstFrame')
+                if first_frame is not None:
+                    ad_evidence.ad_pic_url_list.append(first_frame)
+            cover_info = dict_get(photo_info, 'coverInfo')
+            if cover_info is None:
+                Log.debug('coverInfo err')
+                self.persist_err_content(fmt_json, self.get_err_save_path('kuaishou_err_response.txt'))
+            else:
+                cover_url = dict_get(cover_info, 'coverUrl')
+                if cover_url is not None:
+                    ad_evidence.ad_pic_url_list.append(cover_url)
+                optional_ad_evidence.ad_width = dict_get(cover_info, 'width')
+                optional_ad_evidence.ad_height = dict_get(cover_info, 'height')
+            self.persist_ad_info(AdInfo(ad_evidence=ad_evidence, optional_ad_evidence=optional_ad_evidence))
+        return
+
+    def __parse_feed_response(self, flow: http.HTTPFlow) -> bool:
+        is_suc, decrypt_imp_ad_info_list = self.__decrypt_imp_ad_info(flow,
+                                                                      'https://open.e.kuaishou.com/rest/e/v3/open/feed')
+        if decrypt_imp_ad_info_list is None:
+            return is_suc
+        else:
+            self.__parse_feed_response_impl(decrypt_imp_ad_info_list)
+            return True
+
+    def __match_ad_url_access(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        if url not in self.m_ad_info_map:
+            return False
+        ad_info = self.m_ad_info_map[url]
+        evidence_save_path = os.path.join(self.get_output_path(), ad_info.uuid)
+        FilesystemUtil.create_directories(evidence_save_path)
+        screenshot_path = os.path.join(evidence_save_path, 'ad_screenshot_0.png')
+        ad_info.ad_evidence.set_ad_pic_path('screenshot', screenshot_path)
+        self.thread_screen_cap(screenshot_path)
+        ad_flow_path = os.path.join(evidence_save_path, 'ad_net_pkg_0.mitm')
+        ad_info.ad_evidence.ad_flow_path = ad_flow_path
+        OutputUtil.dump_flow(ad_flow_path, flow)
+        self.persist_ad_info(ad_info)
+        return True

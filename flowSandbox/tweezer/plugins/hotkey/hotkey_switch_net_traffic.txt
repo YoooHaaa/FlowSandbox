@@ -1,0 +1,119 @@
+# !/usr/bin/env python3
+# -*-coding:utf-8 -*-
+
+"""
+# File       : hotkey_switch_net_traffic.py
+# Time       ：10/27/20 15:17
+# Author     ：Rodney Cheung
+"""
+from configparser import ConfigParser
+
+import keyboard
+
+from tweezer.config.config import Configor
+from tweezer.core.faker.network_faker import NetworkFaker
+from tweezer.core.runtime_event import RuntimeEvent, RuntimeEventType
+from tweezer.model.traffic_type import TrafficType
+from tweezer.model.wifi import WifiInfo
+from tweezer.plugins.base.base_hotkey_plugin import BaseHotkeyPlugin
+from tweezer.resource.resource import CwdResource
+from tweezer.resource.runtime import Runtime
+from tweezer.util.frida_switcher import FridaSwitcher
+from wisbec import system
+from wisbec.filesystem.filesystem import FilesystemUtil
+from wisbec.logging.log import Log
+
+
+class HotkeySwitchNetTraffic(BaseHotkeyPlugin):
+    def run(self):
+        self.register_event()
+
+    def register_event(self):
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.SWITCHED_APP, callback=self.__cb_switched_app)
+
+    def __cb_switched_app(self, event_type, **kwargs):
+        self.m_top_app = kwargs['pkg']
+        # if Runtime().exec_env.traffic_type == TrafficType.WIFI:
+        #     self.m_network_faker.fake_as_wifi(self.m_wifi_info)
+        # else:
+        #    self.m_network_faker.fake_as_mobile()
+
+    def __init__(self):
+        super().__init__()
+        Runtime().traffic_faker_on = True
+        self.m_network_faker: NetworkFaker = NetworkFaker.instance(Runtime().device_id)
+        self.m_hotkey_switch_net_traffic_conf = Configor.get_hotkey_switch_net_traffic_conf()
+        self.m_wifi_info: WifiInfo = WifiInfo()
+        self.__read_wifi_config()
+        self.__choose_network_traffic()
+        self.__register_switch_net_traffic_hotkey()
+
+    @staticmethod
+    def __check_if_has_default() -> bool:
+        if FilesystemUtil.is_file_exist(CwdResource.get_fake_net_traffic_conf_path()):
+            conf = ConfigParser()
+            conf.read(CwdResource.get_fake_net_traffic_conf_path())
+            Runtime().exec_env.traffic_type = TrafficType(conf.getint('config', 'traffic_type'))
+            return True
+        return False
+
+    @staticmethod
+    def __choose_network_traffic_impl():
+        Log.info("""请选择要伪装的网络环境:
+                1.Wi-Fi
+                2.蜂窝
+                """)
+        while True:
+            index = int(input("选择网络环境:"))
+            if index == 1:
+                Runtime().exec_env.traffic_type = TrafficType.WIFI
+                break
+            elif index == 2:
+                Runtime().exec_env.traffic_type = TrafficType.Cellular
+                break
+            else:
+                Log.info('输出错误,重新输入!')
+
+    @staticmethod
+    def __save_default_traffic_type():
+        with open(CwdResource.get_fake_net_traffic_conf_path(), 'w') as f:
+            conf = ConfigParser()
+            conf.add_section('config')
+            conf.set('config', 'traffic_type', str(Runtime().exec_env.traffic_type.value))
+            conf.write(f)
+
+    def __choose_network_traffic(self):
+        if self.__check_if_has_default():
+            return
+        self.__choose_network_traffic_impl()
+        self.__save_default_traffic_type()
+
+    def __read_wifi_config(self):
+        wifi_conf = self.m_hotkey_switch_net_traffic_conf['wifi']
+        self.m_wifi_info.m_ssid = wifi_conf['ssid']
+        self.m_wifi_info.m_bssid = wifi_conf['bssid']
+        self.m_wifi_info.m_ip = wifi_conf['ip']
+        self.m_wifi_info.m_mac = wifi_conf['mac']
+        Runtime().fake_wifi_info = self.m_wifi_info
+
+    def __register_switch_net_traffic_hotkey(self):
+        shortcut = self.m_hotkey_switch_net_traffic_conf['shortcut']
+        if shortcut == 'default':
+            if system.is_mac_os():
+                shortcut = 'command+l'
+            else:
+                shortcut = 'alt+l'
+        if self.is_shortcut_valid(shortcut):
+            keyboard.add_hotkey(shortcut, self.__switch_traffic_type)
+            Log.info("热键注册成功, 按下{}切换网络环境", shortcut)
+        else:
+            Log.error("热键{}绑定不可用，请重新设置或使用默认设置", shortcut)
+
+    def __switch_traffic_type(self):
+        if Runtime().exec_env.traffic_type == TrafficType.WIFI:
+            Log.info('切换{}网络环境为蜂窝数据', self.m_top_app)
+            Runtime().exec_env.traffic_type = TrafficType.Cellular
+        else:
+            Log.info('切换{}网络环境为Wi-Fi', self.m_top_app)
+            Runtime().exec_env.traffic_type = TrafficType.WIFI
+        FridaSwitcher().on_frida_switch(self.m_top_app)

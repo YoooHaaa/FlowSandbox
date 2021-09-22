@@ -1,0 +1,383 @@
+# !/usr/bin/env python3
+# -*-coding:utf-8 -*-
+
+"""
+# File       : tuia_ad_cap.py
+# Time       ：2020/9/10 09:02
+# Author     ：Rodney Cheung
+"""
+import json
+import os
+import re
+import uuid
+from typing import List, Dict, Set
+from urllib.parse import urlparse, parse_qs
+
+from mitmproxy import http
+
+from tweezer.config.config import Configor
+from tweezer.core.runtime_event import RuntimeEvent, RuntimeEventType
+from tweezer.model.ad_info import AdInfo, OptionalAdEvidence, AdEvidence
+from tweezer.model.ad_sdk import AdSdkInfo, AdSdkType
+from tweezer.plugins.base.base_ad_plugin import BaseAdPlugin
+from tweezer.util.output import OutputUtil
+from tweezer.util.wrapper import dict_get, now
+from wisbec.filesystem.filesystem import FilesystemUtil
+from wisbec.logging.log import Log
+
+
+class TuiaAdCap(BaseAdPlugin):
+    def get_sdk_info(self):
+        self.m_sdk_info = AdSdkInfo(AdSdkType.tuia.chinese_name(), '0.4')
+
+    def __init__(self):
+        super().__init__()
+        # key:m_top_app
+        self.m_current_tuia_lottery_info_map: Dict[str, AdInfo] = dict()
+        self.m_current_tuia_ad_lottery_webpage_map: Dict[str, Set] = dict()
+        self.m_current_lottery_entry_info_map: Dict[str, AdInfo] = dict()
+        # url regex list
+        self.m_entry_get_regex_list: List[re.Pattern] = list()
+        self.m_web_resource_rule_patterns: List[re.Pattern] = list()
+        self.m_lottery_embed_window_load_complete_regex_map: Dict[re.Pattern, Dict[str, List[str]]] = dict()
+        self.m_lottery_page_load_complete_regex_map: Dict[re.Pattern, Dict[str, List[str]]] = dict()
+        self.m_lottery_page_redirect_complete_regex_map: Dict[re.Pattern, Dict[str, List[str]]] = dict()
+        self.m_lottery_start_regex_list: List[re.Pattern] = list()
+        self.__init()
+
+    def __init(self):
+        # generate url regex pattern
+        self.__generate_entry_get_regex_list()
+        self.__generate_lottery_start_regex_list()
+        self.__generate_lottery_embed_window_load_complete_regex_list()
+        self.__generate_lottery_page_load_complete_regex_list()
+        self.__generate_lottery_page_redirect_complete_regex_list()
+        self.__generate_web_resource_regex_list()
+        # init dir
+        self.__init_dir()
+
+    def load_conf(self):
+        conf = Configor.get_ad_cap_conf(AdSdkType.tuia)
+        self.m_screen_cap_delay_time = conf['capture_delay_time']
+
+    def __init_dir(self):
+        pass
+
+    def register_event(self):
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.REQUEST, callback=self.__cb_request)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.RESPONSE, callback=self.__cb_response)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.SWITCHED_APP, callback=self.__cb_switch_app)
+
+    def run(self):
+        self.register_event()
+
+    def __cb_request(self, event_type, **kwargs):
+        flow: http.HTTPFlow = kwargs['flow']
+        if self.__match_entry_get(flow):
+            return
+
+    def __cb_switch_app(self, event_type, **kwargs):
+        self.m_top_app = kwargs['pkg']
+        if self.m_top_app not in self.m_current_tuia_ad_lottery_webpage_map:
+            self.m_current_tuia_ad_lottery_webpage_map[self.m_top_app] = set()
+        self.flush_app_info()
+
+    def __cb_response(self, event_type, **kwargs):
+        flow: http.HTTPFlow = kwargs['flow']
+        flow.response.decode()
+        cur_url = flow.request.url
+        if self.__parse_entry_get_response(flow):
+            if self.__save_tuia_lottery_webpage_info():
+                return
+        if self.__save_lottery_page_load_complete(cur_url):
+            return
+        if self.__parse_lottery_start(flow):
+            return
+        if self.__save_lottery_embed_window_load_complete(flow):
+            return
+        if self.__save_lottery_page_redirect_complete(cur_url):
+            return
+
+    def __generate_entry_get_regex_list(self):
+        entry_get_rules: Dict[str, bool] = Configor.get_tuia_ad_cap_rules_conf()['entry_get']
+        for entry_get_rule, is_open in entry_get_rules.items():
+            if not is_open:
+                continue
+            self.m_entry_get_regex_list.append(re.compile(entry_get_rule))
+
+    # 匹配推啊互动广告入口信息（一般是页面上的一个小组件，例如红包等）
+    def __match_entry_get(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        for entry_get_rule_pattern in self.m_entry_get_regex_list:
+            if not entry_get_rule_pattern.fullmatch(url):
+                continue
+            Log.info('推啊广告命中:{}', url)
+            ad_info = AdInfo()
+            ad_info.optional_ad_evidence = self.__parse_entry_get_request(flow)
+            self.m_current_lottery_entry_info_map[self.m_top_app] = ad_info
+            return True
+        return False
+
+    def __parse_entry_get_response_impl(self, loaded: dict) -> bool:
+        loaded_str = json.dumps(loaded, indent=4, ensure_ascii=False)
+        if 'data' not in loaded:
+            Log.error('推啊互动广告入口回包格式错误')
+            self.persist_err_content(loaded_str, self.get_err_save_path('tuia_err_response.txt'))
+            return False
+        data = loaded['data']
+        ad_info: AdInfo = self.m_current_lottery_entry_info_map[self.m_top_app]
+        ad_evidence = AdEvidence()
+        ad_evidence.description = dict_get(data, 'extDesc')
+        ad_evidence.title = dict_get(data, 'extTitle')
+        image_url_list = dict_get(data, 'imageUrlList')
+        if image_url_list is not None and len(image_url_list) > 0:
+            ad_evidence.ad_pic_url_list.extend(image_url_list)
+        ad_evidence.ad_url = dict_get(data, 'activityUrl')
+        ad_info.ad_evidence = ad_evidence
+        ad_info.optional_ad_evidence.ad_scene = dict_get(data, 'sceneType')
+        self.m_current_lottery_entry_info_map[self.m_top_app] = ad_info
+        return True
+
+    def __parse_entry_get_response(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        for entry_get_rule_pattern in self.m_entry_get_regex_list:
+            if not entry_get_rule_pattern.fullmatch(url):
+                continue
+            if self.m_top_app not in self.m_current_lottery_entry_info_map:
+                Log.error('未找到request请求解析结果')
+                return False
+            if not flow.response.content:
+                Log.error('推啊互动广告入口回包转码错误')
+                return False
+            loaded = json.loads(flow.response.content)
+            return self.__parse_entry_get_response_impl(loaded)
+        return False
+
+    @staticmethod
+    def __parse_entry_get_request(flow: http.HTTPFlow) -> OptionalAdEvidence:
+        params = parse_qs(flow.request.content.decode('utf-8'))
+        optional_ad_evidence = OptionalAdEvidence()
+        ad_slot_id = dict_get(params, 'adslotId')
+        if ad_slot_id is not None and len(ad_slot_id) > 0:
+            optional_ad_evidence.ad_slot_id = ad_slot_id[0]
+        return optional_ad_evidence
+
+    def __save_tuia_lottery_webpage_info(self) -> bool:
+        if self.m_top_app not in self.m_current_lottery_entry_info_map:
+            return False
+        ad_info = self.m_current_lottery_entry_info_map[self.m_top_app]
+        ad_material_save_path = os.path.join(self.get_output_path(), ad_info.uuid)
+        ad_info.ad_evidence.ad_screenshot_path = os.path.join(ad_material_save_path,
+                                                              'entry_get.png')
+        FilesystemUtil.create_directories(ad_material_save_path)
+        self.thread_screen_cap(ad_info.ad_evidence.ad_screenshot_path)
+        self.persist_ad_info(ad_info)
+        return True
+
+    def __generate_lottery_start_regex_list(self):
+        lottery_start_rules: Dict[str, bool] = Configor.get_tuia_ad_cap_rules_conf()['lottery_start']
+        for lottery_start_rule, is_open in lottery_start_rules.items():
+            if not is_open:
+                continue
+            self.m_lottery_start_regex_list.append(re.compile(lottery_start_rule))
+
+    def __parse_do_join_lottery_win(self, flow: http.HTTPFlow, lottery_json) -> bool:
+        if 'advertLayer' not in lottery_json:
+            Log.error('推啊doJoin请求响应格式错误')
+            print(lottery_json)
+            return False
+        advert_layer = lottery_json['advertLayer']
+        ad_evidence = AdEvidence()
+        ad_evidence.title = dict_get(advert_layer, 'skinName')
+        ad_evidence.ad_url = dict_get(lottery_json, 'androidDownloadUrl')
+        image_url = dict_get(advert_layer, 'image')
+        if image_url is not None and image_url != '':
+            ad_evidence.ad_pic_url_list.append(image_url)
+        lottery_info = AdInfo()
+        ad_evidence_save_path = os.path.join(self.get_output_path(), lottery_info.uuid)
+        FilesystemUtil.create_directories(ad_evidence_save_path)
+        ad_evidence.ad_screenshot_path = os.path.join(ad_evidence_save_path,
+                                                      'ad_screenshot_0.png')
+        ad_evidence.set_ad_pic_path('embed', os.path.join(ad_evidence_save_path, 'ad_embed_screenshot_0.png'))
+        ad_evidence.ad_flow_path = os.path.join(ad_evidence_save_path, 'ad_lottery_start.mitm')
+        OutputUtil.dump_flow(ad_evidence.ad_flow_path, flow)
+        lottery_info.ad_evidence = ad_evidence
+        self.m_current_tuia_lottery_info_map[self.m_top_app] = lottery_info
+        self.persist_ad_info(lottery_info)
+        return True
+
+    def __parse_do_join_lottery_lose(self, lottery_json: dict):
+        block_pattern = re.compile(r'block[0-9]+')
+        ad_info = AdInfo()
+        for k, v in lottery_json.items():
+            if block_pattern.fullmatch(k):
+                title = dict_get(v, 'title')
+                if title is None:
+                    continue
+                ad_img = dict_get(v, 'bannerUrl')
+                if ad_img is None:
+                    continue
+                ad_redirect_url = dict_get(v, 'androidDownloadUrl')
+                if ad_redirect_url is None:
+                    continue
+                ad_evidence = AdEvidence()
+                ad_evidence.title = title
+                ad_evidence.ad_pic_url_list.append(ad_img)
+                ad_evidence.ad_url = ad_redirect_url
+                ad_info.uuid = str(uuid.uuid1())
+                ad_info.time = now()
+                self.persist_ad_info(ad_info)
+        return True
+
+    def __parse_do_join(self, flow: http.HTTPFlow, loaded_json) -> bool:
+        if 'data' not in loaded_json:
+            Log.error('推啊doJoin请求响应格式错误')
+            return False
+        data = loaded_json['data']
+        if 'result' not in data:
+            Log.error('推啊doJoin请求响应格式错误')
+            return False
+        result = data['result']
+        if 'result' not in data:
+            Log.error('推啊doJoin请求响应格式错误')
+            return False
+        do_join_result = result['result']
+        if 'lottery' not in result:
+            Log.error('推啊doJoin请求响应格式错误')
+            return False
+        lottery = result['lottery']
+        if do_join_result == 2:
+            Log.info('中奖了，解析中奖页面')
+            return self.__parse_do_join_lottery_win(flow, lottery)
+        elif do_join_result == 0:
+            Log.info('没有中奖，解析隐藏广告')
+            return self.__parse_do_join_lottery_lose(lottery)
+
+    def __parse_lottery_start(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        for lottery_start_rule_pattern in self.m_lottery_start_regex_list:
+            if lottery_start_rule_pattern.fullmatch(url):
+                Log.info('推啊互动广告点击触发doJoin请求响应解析')
+                loaded = json.loads(flow.response.content)
+                if not flow.response.content:
+                    Log.error('推啊互动广告入口回包转码错误')
+                    return False
+                self.__parse_do_join(flow, loaded)
+        return False
+
+    def __is_lottery_webpage_captured(self, url: str) -> (bool, str):
+        params = parse_qs(urlparse(url).query)
+        page_id_list = dict_get(params, 'pageId')
+        if page_id_list is None or len(page_id_list) == 0:
+            return True, ''
+        page_id = page_id_list[0]
+        return page_id in self.m_current_tuia_ad_lottery_webpage_map[self.m_top_app], page_id
+
+    def __save_lottery_page_load_complete(self, url: str) -> bool:
+        for pattern, params in self.m_lottery_page_load_complete_regex_map.items():
+            if not pattern.fullmatch(url):
+                continue
+            is_captured, page_id = self.__is_lottery_webpage_captured(url)
+            if is_captured:
+                return True
+            if self.m_top_app not in self.m_current_lottery_entry_info_map:
+                ad_info = AdInfo()
+            else:
+                ad_info = self.m_current_lottery_entry_info_map[self.m_top_app]
+            lottery_webpage_screenshot_path: str = os.path.join(
+                self.get_output_path(),
+                ad_info.uuid,
+                'lottery_resource',
+                'lottery_webpage_screenshot_{}.png'.format(page_id))
+            if FilesystemUtil.is_file_exist(lottery_webpage_screenshot_path):
+                return True
+            if self.__check_params(url, params):
+                Log.info('抽奖页面加载完成，开始截图保存')
+                self.m_current_tuia_ad_lottery_webpage_map[self.m_top_app].add(page_id)
+                Log.info('开始截图')
+                self.thread_screen_cap(lottery_webpage_screenshot_path,True)
+                ad_evidence = AdEvidence()
+                ad_evidence.set_ad_pic_path('lottery_webpage', lottery_webpage_screenshot_path)
+                ad_info.ad_evidence = ad_evidence
+                self.persist_ad_info(ad_info)
+                return True
+        return False
+
+    def __generate_lottery_page_load_complete_regex_list(self):
+        lottery_page_load_complete_rules: Dict[str, Dict[str, List[str]]] = \
+            Configor.get_tuia_ad_cap_rules_conf()['lottery_report']['lottery_page_load_complete']
+        for lottery_page_load_complete_rule, params in lottery_page_load_complete_rules.items():
+            self.m_lottery_page_load_complete_regex_map[re.compile(lottery_page_load_complete_rule)] = params
+
+    def __generate_lottery_page_redirect_complete_regex_list(self):
+        lottery_page_redirect_complete_rules: Dict[str, Dict[str, List[str]]] = \
+            Configor.get_tuia_ad_cap_rules_conf()['lottery_report']['lottery_page_redirect_complete']
+        for lottery_page_redirect_complete_rule, params in lottery_page_redirect_complete_rules.items():
+            self.m_lottery_page_redirect_complete_regex_map[re.compile(lottery_page_redirect_complete_rule)] = params
+
+    def __generate_lottery_embed_window_load_complete_regex_list(self):
+        lottery_embed_window_load_complete_rules: Dict[str, Dict[str, List[str]]] = \
+            Configor.get_tuia_ad_cap_rules_conf()['lottery_report']['lottery_embed_window_load_complete']
+        for lottery_embed_window_load_complete_rule, params in lottery_embed_window_load_complete_rules.items():
+            self.m_lottery_embed_window_load_complete_regex_map[
+                re.compile(lottery_embed_window_load_complete_rule)] = params
+
+    def __save_lottery_embed_window_load_complete(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        for pattern, params in self.m_lottery_embed_window_load_complete_regex_map.items():
+            if pattern.fullmatch(url):
+                if not self.__check_params(url, params):
+                    return False
+                Log.info('推啊互动广告抽奖窗口截图')
+                if self.m_top_app in self.m_current_tuia_lottery_info_map:
+                    lottery_info = self.m_current_tuia_lottery_info_map[self.m_top_app]
+                    screenshot_path = self.get_self_increasing_screenshot_path(lottery_info.ad_evidence.
+                                                                               get_ad_pic_path('embed'))
+                    if screenshot_path != lottery_info.ad_evidence.get_ad_pic_path('embed'):
+                        lottery_info.ad_evidence.set_ad_pic_path('embed', screenshot_path)
+                    self.persist_ad_info(lottery_info)
+                else:
+                    screenshot_path = self.get_self_increasing_screenshot_path(
+                        os.path.join(self.get_output_path(), 'unknown',
+                                     'ad_embed_screenshot_0.png'))
+                self.thread_screen_cap(screenshot_path)
+                return True
+        return False
+
+    def __save_lottery_page_redirect_complete(self, url) -> bool:
+        for pattern, params in self.m_lottery_page_redirect_complete_regex_map.items():
+            if pattern.fullmatch(url):
+                if not self.__check_params(url, params):
+                    return False
+                Log.info('推啊互动广告点击触发doJoin响应截图保存')
+                if self.m_top_app in self.m_current_tuia_lottery_info_map:
+                    lottery_info = self.m_current_tuia_lottery_info_map[self.m_top_app]
+                    screenshot_path = self.get_self_increasing_screenshot_path(
+                        lottery_info.ad_evidence.ad_screenshot_path)
+                    lottery_info.ad_evidence.ad_screenshot_path = screenshot_path
+                    self.persist_ad_info(lottery_info)
+                else:
+                    screenshot_path = self.get_self_increasing_screenshot_path(
+                        os.path.join(self.get_output_path(), 'unknown', 'ad_screenshot_0.png'))
+                self.thread_screen_cap(screenshot_path)
+                return True
+        return False
+
+    @staticmethod
+    def __check_params(url: str, target_params: Dict[str, List[str]]) -> bool:
+        params = parse_qs(urlparse(url).query)
+        for target_param, target_param_values in target_params.items():
+            param_list = dict_get(params, target_param)
+            if param_list is None or len(param_list) == 0:
+                return False
+            param = param_list[0]
+            if param not in target_param_values:
+                return False
+        return True
+
+    def __generate_web_resource_regex_list(self):
+        web_resource_rules: Dict[str, bool] = Configor.get_tuia_ad_cap_rules_conf()['web_resource']
+        for web_resource_rule, is_open in web_resource_rules.items():
+            if not is_open:
+                continue
+            self.m_web_resource_rule_patterns.append(re.compile(web_resource_rule))

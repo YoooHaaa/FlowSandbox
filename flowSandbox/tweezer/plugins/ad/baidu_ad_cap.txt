@@ -1,0 +1,130 @@
+# !/usr/bin/env python3
+# -*-coding:utf-8 -*-
+
+"""
+# File       : baidu_ad_cap.py
+# Time       ：11/1/20 10:11
+# Author     ：Rodney Cheung
+"""
+import json
+import os
+import re
+from typing import Dict
+
+from mitmproxy import http
+
+from tweezer.config.config import Configor
+from tweezer.core.runtime_event import RuntimeEvent, RuntimeEventType
+from tweezer.model.ad_info import AdEvidence, OptionalAdEvidence, AdInfo
+from tweezer.model.ad_sdk import AdSdkInfo, AdSdkType
+from tweezer.plugins.base.base_ad_plugin import BaseAdPlugin
+from tweezer.util.output import OutputUtil
+from tweezer.util.wrapper import dict_get
+from wisbec.filesystem.filesystem import FilesystemUtil
+from wisbec.logging.log import Log
+
+
+class BaiduAdCap(BaseAdPlugin):
+    def load_conf(self):
+        conf = Configor.get_ad_cap_conf(AdSdkType.baidu)
+        self.m_screen_cap_delay_time = conf['capture_delay_time']
+
+    def get_sdk_info(self):
+        self.m_sdk_info = AdSdkInfo(AdSdkType.baidu.chinese_name(), '0.1')
+
+    def register_event(self):
+        # RuntimeEvent().reg_event(event_type=RuntimeEventType.REQUEST, callback=self.__cb_request)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.RESPONSE, callback=self.__cb_response)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.SWITCHED_APP, callback=self.__cb_switch_app)
+
+    def run(self):
+        self.register_event()
+
+    def __init__(self):
+        super().__init__()
+        self.m_ad_info_map: Dict[str, AdInfo] = dict()
+
+    # def __cb_request(self, event_type, **kwargs):
+    #     flow: http.HTTPFlow = kwargs['flow']
+
+    def __cb_switch_app(self, event_type, **kwargs):
+        self.m_top_app = kwargs['pkg']
+        self.flush_app_info()
+
+    def __cb_response(self, event_type, **kwargs):
+        flow: http.HTTPFlow = kwargs['flow']
+        if self.__parse_baidu_ad(flow):
+            return
+        if self.__match_ad_url_access(flow):
+            return
+
+    def __match_ad_url_access(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        if url in self.m_ad_info_map:
+            Log.debug('baidu url accessed:{}', url)
+            ad_info = self.m_ad_info_map[url]
+            evidence_save_path = os.path.join(self.get_output_path(), ad_info.uuid)
+            FilesystemUtil.create_directories(evidence_save_path)
+            screenshot_path = os.path.join(evidence_save_path, 'ad_screenshot_0.png')
+            ad_info.ad_evidence.set_ad_pic_path('screenshot', screenshot_path)
+            self.thread_screen_cap(screenshot_path)
+            ad_flow_path = os.path.join(evidence_save_path, 'ad_net_pkg_0.mitm')
+            ad_info.ad_evidence.ad_flow_path = ad_flow_path
+            OutputUtil.dump_flow(ad_flow_path, flow)
+            self.persist_ad_info(ad_info)
+            return True
+        return False
+
+    @staticmethod
+    def get_ad_json_from_html_content(html_content) -> str:
+        ad_pattern = re.compile(r'var ads = \[.*];')
+        matched: re.Match = ad_pattern.search(html_content)
+        if matched is not None:
+            ad_json = html_content[matched.span()[0] + 10:matched.span()[1] - 1]
+            return ad_json
+        else:
+            ad_pattern = re.compile(r'var ads=\[.*];')
+            matched: re.Match = ad_pattern.search(html_content)
+            if matched is not None:
+                ad_json = html_content[matched.span()[0] + 8:matched.span()[1] - 1]
+                return ad_json
+            else:
+                return ''
+
+    def __parse_baidu_ad_impl(self, ad_info_list: dict):
+        for ad_info in ad_info_list:
+            ad_evidence = AdEvidence()
+            optional_ad_evidence = OptionalAdEvidence()
+            ad_url = dict_get(ad_info, 'curl')
+            if ad_url is None:
+                continue
+            ad_evidence.ad_url = ad_url
+            icon_url = dict_get(ad_info, 'iconurl')
+            if icon_url is not None:
+                ad_evidence.ad_pic_url_list.append(icon_url)
+            image_url = dict_get(ad_info, 'image_url')
+            if image_url is not None:
+                ad_evidence.ad_pic_url_list.append(image_url)
+            title = dict_get(ad_info, 'mt_title')
+            if title is None:
+                title = dict_get(ad_info, 'title')
+            ad_evidence.title = title
+            ad_evidence.description = dict_get(ad_info, 'mt_desc')
+            optional_ad_evidence.ad_height = dict_get(ad_info, 'height')
+            optional_ad_evidence.ad_width = dict_get(ad_info, 'width')
+            res = AdInfo(ad_evidence=ad_evidence, optional_ad_evidence=optional_ad_evidence)
+            self.m_ad_info_map[ad_url] = res
+            self.persist_ad_info(res)
+
+    def __parse_baidu_ad(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        if not re.fullmatch(r'https://pos.baidu.com/s\S*', url):
+            return False
+        html_content = flow.response.content.decode()
+        ad_json_str = self.get_ad_json_from_html_content(html_content)
+        if ad_json_str != '':
+            ad_info_list = json.loads(ad_json_str)
+            self.__parse_baidu_ad_impl(ad_info_list)
+        else:
+            self.persist_err_content(html_content, self.get_err_save_path('baidu_err.txt'))
+        return True

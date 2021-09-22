@@ -1,0 +1,50 @@
+{
+  "entry_get": {
+    "https://engine\\.tuia\\.cn/index/sdk/serving.*": true
+  },
+  "lottery_start": {
+    "https://activity\\.[a-zA-Z0-9]*\\.com/activity/doJoin.*": true,
+    "https://activity\\.[a-zA-Z0-9]*\\.cn/activity/doJoin.*": true,
+    "https://activity\\.[a-zA-Z0-9]*\\.cn/pluginTools/dojoin": true,
+    "https://activity\\.[a-zA-Z0-9]*\\.com/activity/result.*": true
+  },
+  "lottery_report": {
+    "lottery_page_load_complete": {
+      "https://hunter-report\\.dui88\\.com/(bi)*report.+": {
+        "client": [
+          "tuia",
+          "tuiaNative"
+        ]
+      }
+    },
+    "lottery_page_redirect_complete": {
+      "https://hunter-report\\.dui88\\.com/(bi)*report.+": {
+        "client": [
+          "advert",
+          "baiqi"
+        ]
+      }
+    },
+    "lottery_embed_window_load_complete": {
+      "https://embedlog\\.duiba\\.com\\.cn/exposure/standard.+": {
+        "device_type": [
+          "tuia"
+        ],
+        "url": [
+          "/activity/showLog"
+        ]
+      }
+    }
+  },
+  "back_to_entry": {
+    "https://activity\\.tuia\\.cn/activity/getTaoKou\\?.+": true
+  },
+  "web_resource": {
+    "https://yun\\.tuisnake\\.com/mami-media/img/.+\\?x-oss-process=image/format,webp": true,
+    "https://yun\\.tuisnake\\.com/h5-mami/dist/.+\\?x-oss-process=image/format,webp": true,
+    "https://yun\\.tuisnake\\.com/.+\\.png": true,
+    "https://yun\\.tuifish\\.com/.+\\.png": true,
+    "https://yun\\.tuisnake\\.com/.+\\.gif": true,
+    "https://yun\\.tuifish\\.com/.+\\.gif": true
+  }
+}

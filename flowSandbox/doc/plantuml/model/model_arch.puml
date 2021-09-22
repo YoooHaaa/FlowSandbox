@@ -1,0 +1,7 @@
+@startmindmap model_arch
+* model
+** exec_env
+** apk_info
+** ad_info
+** sdk_related_info
+@endmindmap

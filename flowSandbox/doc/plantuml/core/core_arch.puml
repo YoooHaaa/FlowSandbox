@@ -1,0 +1,13 @@
+@startmindmap core_arch
+scale 2
+* core
+** certificate install
+** plugin load
+** screen capture
+** proxydroid
+** app switch monitor
+** IP hijack
+** GPS hijack
+** traffic masquerading
+** persist structured data
+@endmindmap

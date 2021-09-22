@@ -1,0 +1,144 @@
+{
+  "script": {
+    "emulator": {
+      "host": "127.0.0.1",
+      "port": 7555
+    }
+  },
+  "plugins": {
+    "general": {
+      "enabled": true,
+      "ad_filter": {
+        "enabled": false,
+        "name": "AdFilter",
+        "config": {
+        }
+      },
+      "flow_cap": {
+        "enabled": true,
+        "name": "FlowCap",
+        "config": {
+        }
+      }
+    },
+    "ad": {
+      "enabled": false,
+      "gdt_ad_cap": {
+        "enabled": true,
+        "name": "GdtAdCap",
+        "config": {
+          "capture_delay_time": 2
+        }
+      },
+      "tuia_ad_cap": {
+        "enabled": true,
+        "name": "TuiaAdCap",
+        "config": {
+          "capture_delay_time": 1
+        }
+      },
+      "qutoutiao_ad_cap": {
+        "enabled": true,
+        "name": "QutoutiaoAdCap",
+        "config": {
+          "capture_delay_time": 2
+        }
+      },
+      "toutiao_ad_cap": {
+        "enabled": true,
+        "name": "ToutiaoAdCap",
+        "config": {
+          "capture_delay_time": 2
+        }
+      },
+      "weli_ad_cap": {
+        "enabled": true,
+        "name": "WeliAdCap",
+        "config": {
+          "capture_delay_time": 2
+        }
+      },
+      "kuaishou_ad_cap": {
+        "enabled": true,
+        "name": "KuaishouAdCap",
+        "config": {
+          "capture_delay_time": 2
+        }
+      },
+      "baidu_ad_cap": {
+        "enabled": true,
+        "name": "BaiduAdCap",
+        "config": {
+          "capture_delay_time": 3
+        }
+      }
+    },
+    "hotkey": {
+      "enabled": true,
+      "hotkey_screen_cap": {
+        "enabled": true,
+        "name": "HotkeyScreenCap",
+        "config": {
+          "shortcut": "default"
+        }
+      },
+      "hotkey_packet_cap": {
+        "enabled": false,
+        "name": "HotkeyPacketCap",
+        "config": {
+          "shortcut": "default",
+          "packet_cache_size": 10000
+        }
+      },
+      "hotkey_exit": {
+        "enabled": true,
+        "name": "HotkeyExit",
+        "config": {
+          "shortcut": "default"
+        }
+      },
+      "hotkey_switch_net_traffic": {
+        "enabled": false,
+        "name": "HotkeySwitchNetTraffic",
+        "config": {
+          "shortcut": "default",
+          "wifi": {
+            "ssid": "weiqing",
+            "bssid": "04:18:d6:d3:c7:b5",
+            "mac": "00:B2:00:00:00:A5",
+            "ip": "192.168.1.1"
+          }
+        }
+      },
+      "hotkey_switch_location": {
+        "enabled": false,
+        "name": "HotkeySwitchLocation",
+        "config": {
+          "shortcut": "default",
+          "proxy_servers": [
+            {
+              "server": {
+                "host": "39.104.55.246",
+                "port": 8888,
+                "user": "sandbox",
+                "pwd": "7481590263"
+              },
+              "area": {
+                "province": "内蒙古自治区",
+                "city": "呼和浩特市"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "no_proxy_apps": [
+    "com.koushikdutta.vysor",
+    "com.svox.pico",
+    "eu.chainfire.supersu",
+    "com.pkiller.mocklocation"
+  ],
+  "is_drop_known_ad_platform_flow": false,
+  "log_level": "info"
+}

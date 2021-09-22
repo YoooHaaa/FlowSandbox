@@ -1,0 +1,10 @@
+{
+  "category": {
+    "general": {
+      "enabled": true,
+      "rules": {
+        "https://mi\\.gdt\\.qq\\.com/gdt_mview\\.fcg.+": true
+      }
+    }
+  }
+}

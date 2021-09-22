@@ -1,0 +1,333 @@
+# !/usr/bin/env python3
+# -*-coding:utf-8 -*-
+
+"""
+# File       : weli_ad_cap.py
+# Time       ：2020/10/12 09:21
+# Author     ：Rodney Cheung
+"""
+import json
+import os
+import re
+from typing import List, Dict
+
+from mitmproxy import http
+
+from tweezer.config.config import Configor
+from tweezer.core.runtime_event import RuntimeEvent, RuntimeEventType
+from tweezer.model.ad_info import AdInfo, AdEvidence, OptionalAdEvidence
+from tweezer.model.ad_sdk import AdSdkInfo, AdSdkType
+from tweezer.plugins.base.base_ad_plugin import BaseAdPlugin
+from tweezer.util.output import OutputUtil
+from tweezer.util.wrapper import dict_get
+from wisbec.filesystem.filesystem import FilesystemUtil
+from wisbec.logging.log import Log
+
+
+class WeliAdCap(BaseAdPlugin):
+
+    def load_conf(self):
+        conf = Configor.get_ad_cap_conf(AdSdkType.weli)
+        self.m_screen_cap_delay_time = conf['capture_delay_time']
+
+    def get_sdk_info(self):
+        self.m_sdk_info = AdSdkInfo(AdSdkType.weli.chinese_name(), '0.5')
+
+    def register_event(self):
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.REQUEST, callback=self.__cb_request)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.RESPONSE, callback=self.__cb_response)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.SWITCHED_APP, callback=self.__cb_switch_app)
+
+    def run(self):
+        self.register_event()
+
+    def __cb_switch_app(self, event_type, **kwargs):
+        self.m_top_app = kwargs['pkg']
+        self.flush_app_info()
+
+    def __cb_request(self, event_type, **kwargs):
+        pass
+
+    def __cb_response(self, event_type, **kwargs):
+        flow: http.HTTPFlow = kwargs['flow']
+        if self.__parse_ad_pools_response(flow):
+            return
+        if self.__parse_zhwnl_ads(flow):
+            return
+        if self.__parse_coin_ads(flow):
+            return
+        if self.__parse_ad_get(flow):
+            return
+        if self.__match_ad_url_access(flow):
+            return
+
+    def __init__(self):
+        super().__init__()
+        self.m_ad_pool_regex_list: List[re.Pattern] = self.read_rules('ad_pool')
+        self.m_zhwnl_1_regex_list: List[re.Pattern] = self.read_rules('zhwnl_ad_1')
+        self.m_zhwnl_2_regex_list: List[re.Pattern] = self.read_rules('zhwnl_ad_2')
+        self.m_coin_ads_regex_list: List[re.Pattern] = self.read_rules('coin_ads')
+        self.m_ad_get_regex_list: List[re.Pattern] = self.read_rules('ad_get')
+        self.m_coin_ads_subtitle_list: List[str] = list()
+        self.m_coin_ads_popup_list: List[str] = list()
+        self.m_weli_ad_info_map: Dict[str, List[AdInfo]] = dict()
+        self.init()
+        self.m_ad_info_map: Dict[str, AdInfo] = dict()
+
+    def __read_coin_ads_subtitle_list(self):
+        subtitles: Dict[str, bool] = Configor.get_weli_ad_cap_rules_conf()['subtitle']
+        for subtitle, opened in subtitles.items():
+            if opened:
+                self.m_coin_ads_subtitle_list.append(subtitle)
+
+    def __read_coin_ads_popup_list(self):
+        popups: Dict[str, bool] = Configor.get_weli_ad_cap_rules_conf()['popup']
+        for popup, opened in popups.items():
+            if opened:
+                self.m_coin_ads_popup_list.append(popup)
+
+    def init(self):
+        self.__read_coin_ads_subtitle_list()
+        self.__read_coin_ads_popup_list()
+
+    def __parse_ad_pools_response_impl(self, loaded: dict) -> bool:
+        fmt_json = json.dumps(loaded, indent=4, ensure_ascii=False)
+        data_list = dict_get(loaded, 'data')
+        err_save_file = self.get_err_save_path('weli_err_response.txt')
+        if data_list is None:
+            Log.error('回包格式错误:no data list')
+            self.persist_err_content(fmt_json, err_save_file)
+            return False
+        for data in data_list:
+            layout_list = dict_get(data, 'layout')
+            if layout_list is None:
+                Log.error('回包格式错误')
+                self.persist_err_content(fmt_json, err_save_file)
+                return False
+            for layout in layout_list:
+                ads = dict_get(layout, 'ads')
+                if ads is None:
+                    Log.error('回包格式错误')
+                    self.persist_err_content(fmt_json, err_save_file)
+                    return False
+                for ad in ads:
+                    ad_evidence = AdEvidence()
+                    icon = dict_get(ad, 'icon')
+                    if icon is not None:
+                        ad_evidence.ad_pic_url_list.append(icon)
+                    ad_evidence.title = dict_get(ad, 'title')
+                    ad_url = dict_get(ad, 'actionUrl')
+                    ad_evidence.ad_url = ad_url
+                    ad_info = AdInfo(ad_evidence=ad_evidence)
+                    if ad_url is not None and ad_url != '':
+                        self.m_ad_info_map[ad_url] = ad_info
+                    self.persist_ad_info(ad_info)
+        return True
+
+    def __parse_ad_pools_response(self, flow: http.HTTPFlow) -> bool:
+        if self.match_url_rule(self.m_ad_pool_regex_list, flow):
+            return self.__parse_ad_pools_response_impl(json.loads(flow.response.content))
+
+    def __parse_zhwnl_ads(self, flow: http.HTTPFlow) -> bool:
+        if self.__parse_zhwnl_ad_1(flow):
+            return True
+        elif self.__parse_zhwnl_ad_2(flow):
+            return True
+        else:
+            return False
+
+    def __parse_zhwnl_ad_1_impl(self, loaded: dict) -> bool:
+        fmt_json = json.dumps(loaded, indent=4, ensure_ascii=False)
+        data = dict_get(loaded, 'data')
+        err_save_file = self.get_err_save_path('weli_err_response.txt')
+        if data is None:
+            Log.error('回包格式错误')
+            self.persist_err_content(fmt_json, err_save_file)
+            return False
+        cards = dict_get(data, 'cards')
+        if cards is None:
+            Log.error('回包格式错误')
+            self.persist_err_content(fmt_json, err_save_file)
+            return False
+        for card in cards:
+            items = dict_get(card, 'items')
+            if items is None:
+                continue
+            for item in items:
+                ad_evidence = AdEvidence()
+                ad_evidence.title = dict_get(item, 'title')
+                imgs = dict_get(item, 'imgs')
+                if imgs is not None:
+                    ad_evidence.ad_pic_url_list.extend(imgs)
+                ad_url = dict_get(item, 'click_url')
+                ad_evidence.ad_url = ad_url
+                ad_info = AdInfo(ad_evidence=ad_evidence)
+                if ad_url is not None and ad_url != '':
+                    self.m_ad_info_map[ad_url] = ad_info
+                self.persist_ad_info(ad_info)
+        return True
+
+    def __parse_zhwnl_ad_1(self, flow: http.HTTPFlow) -> bool:
+        if self.match_url_rule(self.m_zhwnl_1_regex_list, flow):
+            return self.__parse_zhwnl_ad_1_impl(json.loads(flow.response.content))
+
+    def __parse_zhwnl_ad_2_impl(self, loaded: dict) -> bool:
+        fmt_json = json.dumps(loaded, indent=4, ensure_ascii=False)
+        data_list = dict_get(loaded, 'data')
+        err_save_file = self.get_err_save_path('weli_err_response.txt')
+        if data_list is None:
+            Log.error('回包格式错误')
+            self.persist_err_content(fmt_json, err_save_file)
+            return False
+        for data in data_list:
+            data_internal = dict_get(data, 'data')
+            if data_internal is None:
+                continue
+            items = dict_get(data_internal, 'items')
+            if items is not None:
+                for item in items:
+                    ad_evidence = AdEvidence()
+                    ad_evidence.title = dict_get(item, 'title')
+                    icon = dict_get(item, 'icon')
+                    if icon is not None:
+                        ad_evidence.ad_pic_url_list.append(icon)
+                    ad_url = dict_get(item, 'actionUrl')
+                    ad_evidence.ad_url = ad_url
+                    ad_info = AdInfo(ad_evidence=ad_evidence)
+                    if ad_url is not None and ad_url != '':
+                        self.m_ad_info_map[ad_url] = ad_info
+                    self.persist_ad_info(ad_info)
+            small_videos = dict_get(data_internal, 'small_videos')
+            if small_videos is not None:
+                for small_video in small_videos:
+                    ad_evidence = AdEvidence()
+                    ad_evidence.title = dict_get(small_video, 'title')
+                    img_url = dict_get(small_video, 'img_url')
+                    if img_url is not None:
+                        ad_evidence.ad_pic_url_list.append(img_url)
+                    ad_url = dict_get(small_video, 'play_url')
+                    ad_evidence.ad_url = ad_url
+                    ad_info = AdInfo(ad_evidence=ad_evidence)
+                    if ad_url is not None and ad_url != '':
+                        self.m_ad_info_map[ad_url] = ad_info
+                    self.persist_ad_info(ad_info)
+
+    def __parse_zhwnl_ad_2(self, flow: http.HTTPFlow) -> bool:
+        if self.match_url_rule(self.m_zhwnl_2_regex_list, flow):
+            return self.__parse_zhwnl_ad_2_impl(json.loads(flow.response.content))
+
+    def __parse_coin_ads_subtitle(self, data: dict):
+        for subtitle in self.m_coin_ads_subtitle_list:
+            subtitle_contents = dict_get(data, subtitle)
+            if subtitle_contents is not None:
+                for subtitle_content in subtitle_contents:
+                    ad_evidence = AdEvidence()
+                    ad_evidence.title = dict_get(subtitle_content, 'title')
+                    images_list = dict_get(subtitle_content, 'images_list')
+                    if images_list is not None:
+                        ad_evidence.ad_pic_url_list.extend(images_list)
+                    ad_url = dict_get(subtitle_content, 'url')
+                    ad_evidence.ad_url = ad_url
+                    ad_info = AdInfo(ad_evidence=ad_evidence)
+                    if ad_url is not None and ad_url != '':
+                        self.m_ad_info_map[ad_url] = ad_info
+                    self.persist_ad_info(ad_info)
+
+    def __parse_coin_ads_popup(self, data: dict):
+        for popup in self.m_coin_ads_popup_list:
+            popup_contents = dict_get(dict_get(data, popup), 'popups')
+            if popup_contents is not None:
+                for popup_content in popup_contents:
+                    ad_evidence = AdEvidence()
+                    ad_evidence.title = dict_get(popup_content, 'title')
+                    image = dict_get(popup_content, 'image')
+                    if image is not None:
+                        ad_evidence.ad_pic_url_list.append(image)
+                    ad_url = dict_get(popup_content, 'url')
+                    ad_evidence.ad_url = ad_url
+                    ad_info = AdInfo(ad_evidence=ad_evidence)
+                    if ad_url is not None and ad_url != '':
+                        self.m_ad_info_map[ad_url] = ad_info
+                    self.persist_ad_info(ad_info)
+
+    def __parse_coin_ads_impl(self, loaded: dict) -> bool:
+        fmt_json = json.dumps(loaded, indent=4, ensure_ascii=False)
+        data = dict_get(loaded, 'data')
+        err_save_file = self.get_err_save_path('weli_err_response.txt')
+        if data is None:
+            Log.error('回包格式错误')
+            self.persist_err_content(fmt_json, err_save_file)
+            return False
+        self.__parse_coin_ads_subtitle(data)
+        self.__parse_coin_ads_popup(data)
+        return True
+
+    def __parse_coin_ads(self, flow: http.HTTPFlow) -> bool:
+        if self.match_url_rule(self.m_coin_ads_regex_list, flow):
+            return self.__parse_coin_ads_impl(json.loads(flow.response.content))
+
+    def __parse_ad_get_impl(self, loaded: dict) -> bool:
+        fmt_json = json.dumps(loaded, indent=4, ensure_ascii=False)
+        data_list = dict_get(loaded, 'data')
+        err_save_file = os.path.join(self.get_err_save_path('weli_err_response.txt'))
+        if data_list is None:
+            Log.error('回包格式错误')
+            self.persist_err_content(fmt_json, err_save_file)
+            return False
+        for data in data_list:
+            ad_evidence = AdEvidence()
+            ad_evidence.title = dict_get(data, 'title')
+            ad_evidence.description = dict_get(data, 'desc')
+            icon_url = dict_get(data, 'icon_url')
+            if icon_url is not None:
+                ad_evidence.ad_pic_url_list.append(icon_url)
+            image_urls = dict_get(data, 'image_urls')
+            if image_urls is not None:
+                ad_evidence.ad_pic_url_list.extend(image_urls)
+            optional_ad_evidence = OptionalAdEvidence()
+            optional_ad_evidence.ad_width = dict_get(data, 'width')
+            optional_ad_evidence.ad_height = dict_get(data, 'height')
+            self.persist_ad_info(AdInfo(ad_evidence=ad_evidence, optional_ad_evidence=optional_ad_evidence))
+        return True
+
+    def __parse_ad_get(self, flow: http.HTTPFlow) -> bool:
+        if self.match_url_rule(self.m_ad_get_regex_list, flow):
+            return self.__parse_ad_get_impl(json.loads(flow.response.content))
+
+    @staticmethod
+    def match_url_rule(rule_regex_list: List[re.Pattern], flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        for rule in rule_regex_list:
+            if not rule.fullmatch(url):
+                continue
+            flow.response.decode()
+            if flow.response.content is None:
+                Log.error('回包转码错误')
+                return False
+            return True
+        return False
+
+    @staticmethod
+    def read_rules(rule_type: str) -> List[re.Pattern]:
+        rules: Dict[str, bool] = Configor.get_weli_ad_cap_rules_conf()[rule_type]
+        regex_list = list()
+        for ad_pool_rule, opened in rules.items():
+            if opened:
+                regex_list.append(re.compile(ad_pool_rule))
+        return regex_list
+
+    def __match_ad_url_access(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        if url not in self.m_ad_info_map:
+            return False
+        ad_info = self.m_ad_info_map[url]
+        evidence_save_path = os.path.join(self.get_output_path(), ad_info.uuid)
+        FilesystemUtil.create_directories(evidence_save_path)
+        screenshot_path = os.path.join(evidence_save_path, 'ad_screenshot_0.png')
+        ad_info.ad_evidence.set_ad_pic_path('screenshot', screenshot_path)
+        self.thread_screen_cap(screenshot_path)
+        ad_flow_path = os.path.join(evidence_save_path, 'ad_net_pkg_0.mitm')
+        ad_info.ad_evidence.ad_flow_path = ad_flow_path
+        OutputUtil.dump_flow(ad_flow_path, flow)
+        self.persist_ad_info(ad_info)
+        return True

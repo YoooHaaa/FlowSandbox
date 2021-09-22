@@ -1,0 +1,172 @@
+# !/usr/bin/env python3
+# -*-coding:utf-8 -*-
+
+"""
+# File       : toutiao_ad_cap.py
+# Time       ：2020/9/24 17:37
+# Author     ：Rodney Cheung
+"""
+import json
+import os
+from typing import AnyStr, Dict, List
+
+from mitmproxy import http
+
+from tweezer.config.config import Configor
+from tweezer.core.runtime_event import RuntimeEvent, RuntimeEventType
+from tweezer.model.ad_fetch_err_info import AdFetchErrInfo
+from tweezer.model.ad_info import AdInfo, AdEvidence
+from tweezer.model.ad_sdk import AdSdkInfo, AdSdkType
+from tweezer.plugins.base.base_ad_plugin import BaseAdPlugin
+from tweezer.resource.resource import PackageResource
+from tweezer.util.output import OutputUtil
+from tweezer.util.wrapper import dict_get
+from wisbec.console import shell
+from wisbec.filesystem.filesystem import FilesystemUtil
+from wisbec.logging.log import Log
+
+
+class ToutiaoAdCap(BaseAdPlugin):
+    def load_conf(self):
+        conf = Configor.get_ad_cap_conf(AdSdkType.toutiao)
+        self.m_screen_cap_delay_time = conf['capture_delay_time']
+
+    def get_sdk_info(self):
+        self.m_sdk_info = AdSdkInfo(AdSdkType.toutiao.chinese_name(), '0.3')
+
+    def __init__(self):
+        super().__init__()
+        self.m_ad_info_map: Dict[str, AdInfo] = dict()
+        self.m_ad_fetch_err_info_list: List[AdFetchErrInfo] = list()
+
+    def register_event(self):
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.RESPONSE, callback=self.__cb_response)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.SWITCHED_APP, callback=self.__cb_switch_app)
+
+    def run(self):
+        self.register_event()
+
+    def __cb_switch_app(self, event_type, **kwargs):
+        self.m_top_app = kwargs['pkg']
+        self.flush_app_info()
+
+    def __cb_response(self, event_type, **kwargs):
+        flow: http.HTTPFlow = kwargs['flow']
+        if self.__parse_toutiao_get_ad_response(flow):
+            return
+        if self.__match_ad_url_access(flow):
+            return
+        if self.__parse_toutiao_get_ad_settings(flow):
+            return
+
+    @staticmethod
+    def decrypt_toutiao(cypher, message) -> (AnyStr, AnyStr):
+        code, out, err = shell.exec_jar(PackageResource.get_decrypt_jar_path(),
+                                        ['toutiao', message, str(cypher)])
+        if code != 0:
+            Log.error('decrypt err:{}', out + err)
+            return '', out + err
+        else:
+            return out, ''
+
+    def __parse_get_ad_response_impl(self, data):
+        loaded = json.loads(data)
+        loaded_str = json.dumps(loaded, indent=4, ensure_ascii=False)
+        creatives = dict_get(loaded, 'creatives')
+        if creatives is None or len(creatives) == 0:
+            Log.error("回包格式错误:no creatives found")
+            self.persist_err_content(loaded_str, os.path.join(self.get_output_path(), 'toutiao_err_response.txt'))
+            return
+        for creative in creatives:
+            ad_evidence = AdEvidence()
+            ad_evidence.description = dict_get(creative, 'description')
+            ad_evidence.title = dict_get(creative, 'title')
+            icon = dict_get(creative, 'icon')
+            if icon is not None:
+                icon_url = dict_get(icon, 'url')
+                if icon_url is not None and icon_url != '':
+                    ad_evidence.ad_pic_url_list.append(icon_url)
+            images = dict_get(creative, 'image')
+            if images is not None:
+                for image in images:
+                    image_url = dict_get(image, 'url')
+                    if image_url is not None and image_url != '':
+                        ad_evidence.ad_pic_url_list.append(image_url)
+            ad_evidence.ad_url = dict_get(creative, 'target_url')
+            ad_info = AdInfo(ad_evidence=ad_evidence)
+            if ad_evidence.ad_url is not None and ad_evidence.ad_url != '':
+                self.m_ad_info_map[ad_evidence.ad_url] = ad_info
+            self.persist_ad_info(ad_info)
+
+    def __parse_toutiao_get_ad_settings(self, flow: http.HTTPFlow) -> bool:
+        if 'https://api-access.pangolin-sdk-toutiao.com/api/ad/union/sdk/settings/' in flow.request.url:
+            loaded = json.loads(flow.response.content)
+            cypher = dict_get(loaded, 'cypher')
+            if cypher is not None:
+                message = dict_get(loaded, 'message')
+                self.__parse_normal_toutiao_get_ad_settings_response(cypher, message)
+                return True
+        return False
+
+    def __parse_normal_toutiao_get_ad_settings_response(self, cypher: int, message: str):
+        data, err = self.decrypt_toutiao(cypher, message)
+        if err == '':
+            loaded = json.loads(data)
+            self.persist_err_content(json.dumps(loaded, ensure_ascii=False, indent=4),
+                                     os.path.join(self.get_output_path(), 'toutiao_err_response.txt'))
+        else:
+            Log.error('decrypt toutiao_get_ad_settings_response err:{}', err)
+
+    def __decrypt_get_ad_response(self, loaded: dict) -> (bool, str, str):
+        cypher = dict_get(loaded, 'cypher')
+        if cypher is None:
+            return False, None, 'no cypher'
+        message = dict_get(loaded, 'message')
+        if message is None:
+            return False, None, 'no message'
+        data, err = self.decrypt_toutiao(cypher, message)
+        if data == '':
+            return False, data, err
+        return True, data, err
+
+    def __parse_toutiao_get_ad_failed_response(self, loaded: dict) -> bool:
+        desc = dict_get(loaded, 'desc')
+        if desc is None:
+            return False
+        err_code = dict_get(loaded, 'reason')
+        if err_code is None:
+            return False
+        self.m_ad_fetch_err_info_list.append(AdFetchErrInfo(desc, err_code))
+        Log.debug('app获取穿山甲广告失败:{}', desc)
+        return True
+
+    def __parse_toutiao_get_ad_response(self, flow: http.HTTPFlow) -> bool:
+        if 'https://api-access.pangolin-sdk-toutiao.com/api/ad/union/sdk/get_ads' in flow.request.url:
+            loaded = json.loads(flow.response.content)
+            is_suc, data, err = self.__decrypt_get_ad_response(loaded)
+            if is_suc:
+                self.__parse_get_ad_response_impl(data)
+            else:
+                if not self.__parse_toutiao_get_ad_failed_response(loaded):
+                    loaded_str = json.dumps(loaded, indent=4, ensure_ascii=False)
+                    self.persist_err_content(loaded_str, self.get_err_save_path('toutiao_err.txt'))
+                    Log.error('toutiao decrypt err:{}', err)
+            return True
+        else:
+            return False
+
+    def __match_ad_url_access(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        if url not in self.m_ad_info_map:
+            return False
+        ad_info = self.m_ad_info_map[url]
+        evidence_save_path = os.path.join(self.get_output_path(), ad_info.uuid)
+        FilesystemUtil.create_directories(evidence_save_path)
+        screenshot_path = os.path.join(evidence_save_path, 'ad_screenshot_0.png')
+        ad_info.ad_evidence.set_ad_pic_path('screenshot', screenshot_path)
+        self.thread_screen_cap(screenshot_path)
+        ad_flow_path = os.path.join(evidence_save_path, 'ad_net_pkg_0.mitm')
+        ad_info.ad_evidence.ad_flow_path = ad_flow_path
+        OutputUtil.dump_flow(ad_flow_path, flow)
+        self.persist_ad_info(ad_info)
+        return True

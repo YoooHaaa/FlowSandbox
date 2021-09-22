@@ -1,0 +1,137 @@
+# !/usr/bin/env python3
+# -*-coding:utf-8 -*-
+
+"""
+# File       : hotkey_switch_location.py
+# Time       ：10/27/20 17:33
+# Author     ：Rodney Cheung
+"""
+import os
+import random
+from typing import Dict, Optional, List
+
+import jsonpickle
+import keyboard
+from tweezer.util.TerminateTweezer import TweezerTerminator
+
+from tweezer.config.config import Configor
+from tweezer.core.faker.location_faker import LocationFaker
+from tweezer.core.upstream_proxy import UpstreamProxy
+from tweezer.model.area import AreaInfo
+from tweezer.model.proxy_server import ProxyServerInfo
+from tweezer.model.url import UrlInfo
+from tweezer.plugins.base.base_hotkey_plugin import BaseHotkeyPlugin
+from tweezer.resource.resource import CwdResource
+from tweezer.resource.runtime import Runtime
+from wisbec import system
+from wisbec.filesystem.filesystem import FilesystemUtil
+from wisbec.logging.log import Log
+
+
+class HotkeySwitchLocation(BaseHotkeyPlugin):
+    def run(self):
+        self.register_event()
+
+    def register_event(self):
+        pass
+
+    def __init__(self):
+        super().__init__()
+        self.m_location_faker: LocationFaker = LocationFaker.instance(Runtime().device_id)
+        self.m_hotkey_switch_location_conf = Configor.get_hotkey_switch_location_conf()
+        self.m_proxy_server_info: Optional[ProxyServerInfo] = None
+        self.m_proxy_server_list: List[ProxyServerInfo] = list()
+        self.m_index: int = 1
+        self.__choose_proxy_server()
+        if self.__start_proxy_server() is False:
+            TweezerTerminator.instance().terminate()  # exit
+        self.__register_random_switch_location_hotkey()
+
+    def __check_if_has_default(self):
+        if FilesystemUtil.is_file_exist(CwdResource.get_fake_proxy_server_conf_path()):
+            with open(CwdResource.get_fake_proxy_server_conf_path(), 'r') as f:
+                self.m_proxy_server_info = jsonpickle.decode(f.read())
+            return True
+        return False
+
+    def __init_proxy_server_info_list(self):
+        for server_info in self.m_hotkey_switch_location_conf['proxy_servers']:
+            province = server_info['area']['province']
+            city = server_info['area']['city']
+            host = server_info['server']['host']
+            port = server_info['server']['port']
+            user = None
+            pwd = None
+            if ('user' in server_info['server']) and ('pwd' in server_info['server']):
+                user = server_info['server']['user']
+                pwd = server_info['server']['pwd']
+            self.m_proxy_server_list.append(ProxyServerInfo(AreaInfo(province, city),
+                                                            UrlInfo(host, port, user, pwd)))
+
+    def __print_proxy_server(self):
+        Log.info('请选择代理服务器地址:{}', os.linesep)
+        server_index = 1
+        for server_info in self.m_proxy_server_list:
+            area_info = server_info.area_info
+            print(' {}. {}{}'.format(server_index,
+                                     area_info.province + area_info.city, os.linesep))
+            server_index += 1
+
+    def __fill_proxy_server_info(self, index: int):
+        self.m_index = index
+        self.m_proxy_server_info = self.m_proxy_server_list[index]
+        area_info = self.m_proxy_server_info.area_info
+        longitude, latitude = LocationFaker.area_2_coordinates(area_info.province, area_info.city)
+        area_info.longitude = longitude
+        area_info.latitude = latitude
+        Runtime().exec_env.ip = self.m_proxy_server_info.url_info.host
+        Runtime().exec_env.gps = area_info.province + area_info.city
+
+    def __choose_proxy_server(self):
+        self.__init_proxy_server_info_list()
+        if self.__check_if_has_default():
+            return
+        self.__print_proxy_server()
+        while True:
+            index = int(input('输入服务器代号:'))
+            if index < 1 or index > len(self.m_proxy_server_list):
+                print('输入错误，重新输入!')
+            else:
+                self.__fill_proxy_server_info(index-1)
+                with open(CwdResource.get_fake_proxy_server_conf_path(), 'w') as f:
+                    f.write(jsonpickle.encode(self.m_proxy_server_info, indent=4))
+                return
+
+    def __start_proxy_server(self):
+        area_info = self.m_proxy_server_info.area_info
+        if self.m_location_faker.start_fake(area_info.province + area_info.city,
+                                            area_info.latitude, area_info.longitude) is False:
+            Log.error('GPS伪装启动失败.')
+            return False
+        url_info = self.m_proxy_server_info.url_info
+        UpstreamProxy.instance().start(url_info.host, url_info.port, url_info.user, url_info.pwd)
+        return True
+
+    def __random_proxy_server(self):
+        if len(self.m_proxy_server_list) == 1:
+            Log.info('仅有一个代理服务器，无法随机切换')
+            return
+        while True:
+            index = random.randint(1, len(self.m_proxy_server_list))
+            if self.m_index != index:
+                break
+        self.__fill_proxy_server_info(index-1)
+        self.__start_proxy_server()
+
+    def __register_random_switch_location_hotkey(self):
+        shortcut = self.m_hotkey_switch_location_conf['shortcut']
+        if shortcut == 'default':
+            if system.is_mac_os():
+                shortcut = 'command+j'
+            else:
+                shortcut = 'alt+j'
+        if self.is_shortcut_valid(shortcut):
+            keyboard.add_hotkey(shortcut, self.__random_proxy_server)
+            Log.info("热键注册成功, 按下{}随机切换IP地址和GPS定位", shortcut)
+        else:
+            Log.error("热键{}绑定不可用，请重新设置或使用默认设置", shortcut)

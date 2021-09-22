@@ -1,0 +1,313 @@
+# !/usr/bin/env python3
+# -*-coding:utf-8 -*-
+
+"""
+# File       : tuia_ad_cap.py
+# Time       ：2020/10/30 12:02
+# Author     ：kou quan
+"""
+import json
+import os
+import re
+from typing import List
+
+import requests
+from mitmproxy import http
+
+from tweezer.config.config import Configor
+from tweezer.core.runtime_event import RuntimeEvent, RuntimeEventType
+from tweezer.model.ad_info import AdInfo, AdEvidence, OptionalAdEvidence
+from tweezer.model.ad_sdk import AdSdkInfo, AdSdkType
+from tweezer.plugins.base.base_ad_plugin import BaseAdPlugin
+from tweezer.util.output import OutputUtil
+from wisbec.filesystem.filesystem import FilesystemUtil
+from wisbec.logging.log import Log
+
+
+class QutoutiaoAdCap(BaseAdPlugin):
+    def load_conf(self):
+        conf = Configor.get_ad_cap_conf(AdSdkType.qutoutiao)
+        self.m_screen_cap_delay_time = conf['capture_delay_time']
+
+    def get_sdk_info(self):
+        self.m_sdk_info = AdSdkInfo(AdSdkType.qutoutiao.chinese_name(), '0.2')
+
+    def __init__(self):
+        super().__init__()
+        self.m_flow_cache: List[http.HTTPFlow] = list()
+        self.m_top_app: str = ''
+        self.load_conf()
+
+    def register_event(self):
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.RESPONSE, callback=self.__cb_response)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.SWITCHED_APP, callback=self.__cb_switch_app)
+
+    def run(self):
+        self.register_event()
+
+    # def __cb_request(self, event_type, **kwargs):
+    #     flow: http.HTTPFlow = kwargs['flow']
+
+    def __cb_switch_app(self, event_type, **kwargs):
+        self.m_top_app = kwargs['pkg']
+        self.flush_app_info()
+
+    def __cb_response(self, event_type, **kwargs):
+        flow: http.HTTPFlow = kwargs['flow']
+        flow.response.decode()
+        if self.__match_coin_tree(flow):
+            pass
+        elif self.__match_aiclk(flow):
+            pass
+
+    @staticmethod
+    def __get_url_title(url):
+        try:
+            html = requests.get(url).content.decode()
+            return re.search('<title>(.*?)</title>', html).groups()[0]
+        except Exception:
+            return None
+
+    # 我的 -> 摇钱树
+    def __match_coin_tree(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        """ https://api.1sapp.com/activity/coinTree?token=174eaV-eLeXH7OUVoeFmqDuF1khlDElIl2SEkc1loxGgRUw36st85WSn02asxEVzXPD8wdKr8MxgUhaAfPY&dtu=002&xhi=200&version=31013000&deviceCode=352531088706112&os=android&tk=ACFZA5l7pl3E6-8Ex-EpIQsD1Fu17AMV9u00NzUxNDk1MDg5NTIyNQ&distinct_id=27cc4cd22aefc5b4&channel=&appName=&chineseName=&action=1&origin=&_=1603867167960 """
+        if 'api.1sapp.com/activity/coinTree?' in url:
+            try:
+                """
+                {
+                "code": 0,
+                "message": "成功",
+                "showErr": 0,
+                "currentTime": 1603867168,
+                "data": {
+                    "amount": 10,
+                    "video_amount": 50,
+                    "times": 6,
+                    "icon_status": 0,
+                    "total_coin": 15010,
+                    "multi": 5,
+                    "multi_sdk": 2,
+                    "text": "领150金币",
+                    "style": "",
+                    "fb_link": "https://cfg.aiclk.com/hdjump?iclicashid=7725670",//天降红包页
+                    "btn_link": "https://cfg.aiclk.com/hdjump?iclicashid=7894919",//抽奖页
+                    "lottie_url": "http://static-oss.qutoutiao.net/cointree/yaoqianshu.json",
+                    "img_url": "https://cpc-static.1sapp.com/static/common/c3f0ebca-3169-4e16-8ce4-6cc4b67c00e1_180_224.png",//领红包图标
+                    "ext_info": "{\"amount\":50,\"scene_id\":2485,\"token\":\"55c12f00752b4e66543207647e817c6f7d\"}"
+                    }
+                }
+                """
+                dict_content = json.loads(flow.response.content.decode())
+
+                # 落地页1
+                ad_info = AdInfo(ad_evidence=AdEvidence(), optional_ad_evidence=OptionalAdEvidence())
+                link = dict_content['data']['fb_link']
+                title = self.__get_url_title(link)
+                if title is None:
+                    Log.error('"趣头条领金币"广告入口回包格式错误: 落地页标题获取失败： ' + link)
+                    self.persist_err_content('"趣头条领金币"广告入口回包格式错误: 落地页标题获取失败： ' + link,
+                                             self.get_err_save_path('qutoutiao_err_response.txt'))
+                    return False
+                ad_info.ad_evidence.title = title
+                ad_info.ad_evidence.ad_url = dict_content['data']['fb_link']
+                self.persist_ad_info(ad_info)
+
+                # 落地页2, 相关的详细信息就保存在落地页2里。没必要存两份
+                ad_info = AdInfo(ad_evidence=AdEvidence(), optional_ad_evidence=OptionalAdEvidence())
+                link = dict_content['data']['btn_link']
+                title = self.__get_url_title(link)
+                if title is None:
+                    Log.error('"趣头条领金币"广告入口回包格式错误: 落地页标题获取失败： ' + link)
+                    self.persist_err_content('"趣头条领金币"广告入口回包格式错误: 落地页标题获取失败： ' + link,
+                                             self.get_err_save_path('qutoutiao_err_response.txt'))
+                    return False
+
+                ad_info.ad_evidence.title = title
+                ad_info.ad_evidence.ad_url = dict_content['data']['btn_link']
+
+                ad_evidence_save_path = os.path.join(self.get_output_path(), ad_info.uuid)
+                FilesystemUtil.create_directories(ad_evidence_save_path)
+
+                ad_info.ad_evidence.ad_screenshot_path = os.path.join(ad_evidence_save_path,
+                                                                      'coin_tree_0.png')
+
+                ad_info.ad_evidence.ad_flow_path = os.path.join(ad_evidence_save_path, 'ad_coin_tree.mitm')
+                OutputUtil.dump_flow(ad_info.ad_evidence.ad_flow_path, flow)
+
+                self.thread_screen_cap(ad_info.ad_evidence.ad_screenshot_path)
+                self.persist_ad_info(ad_info)
+                Log.info('"趣头条领金币"广告命中:{}', url)
+                return True
+            except Exception as e:
+                Log.error('"趣头条领金币"广告入口回包格式错误')
+                self.persist_err_content('"趣头条领金币"广告入口回包格式错误:' + str(flow.response.content) + '\n\n' +
+                                         str(e), self.get_err_save_path('qutoutiao_err_response.txt'))
+                return False
+
+    # 趣头条的抽奖页面中，集成了推啊的抽奖方案，但域名是趣头条自己的。抽奖结果通过api.aiclk.com(网络搜索应该属于趣头条)获取。
+    def __match_aiclk(self, flow: http.HTTPFlow) -> bool:
+        url = flow.request.url
+        """ https://api.aiclk.com/v4/json """
+
+        if 'https://api.aiclk.com/v4/json' in url and \
+                'Referer' in flow.request.headers and \
+                'https://game.qutuiwa.com/' in flow.request.headers.get('Referer'):
+            """
+            {
+                "success": true,
+                "ads": [{
+                    "material_type": 1,
+                    "native_material": {
+                        "type": 1,
+                        "interaction_type": 2,
+                        "title": "别不信！P30真的很好领！50章小说送10块碎片！",
+                        "desc": "别不信！P30真的很好领！50章小说送10块碎片！",
+                        "url": "http://sf1-be-pack.pglstatp-toutiao.com/obj/ad.union.api/7ddbfe205ac745c6b7e699be6c6791a5",
+                        "c_url": "https://apk-downloader.cootekservice.com/crazyreader/crazyreader.apk?cc=01G08Z\u0026media_source=toutiao",
+                        "logo_url": "http://sf1-be-pack.pglstatp-toutiao.com/obj/ad.union.api/7ddbfe205ac745c6b7e699be6c6791a5",
+                        "view_ability": [],
+                        "width": 750,
+                        "height": 420,
+                        "imp": ["https://www.pangolin-dsp-toutiao.com/api/common/ads/show?extra=SRi3XZ2UGPNEW-uqOcN9qUX4KLrYgRbHCoZchH-PYd20iE0Riw9l0ipUl6yNtyHZZGow-4_WM5o-qUaSXHVSiJwXzOOZTYK16fOMgIcO61GQnUyTuYuxxz4D_hasPS4lCJP06hquuFOP0WmQdWFky-IhbvZPE8HcnY1N-A9iZrmFHBxsDl2gc7sclwTq0QPqRh7dF_ErZPwdBcWmDZexdhnHfNbMe87KzrlhKzILGJyWwnoOVZFADHrULB593sTZv4pviuc4_GSJBNEYZFaoBFbaAyzIAR_brAIG0FjFUyTaFEd6X49hs6tGXw1M68wbS7zG1UTZMTMyImiOl--QW5zYefrWA__43Eyl5qBju1Bp3PF-3ZOr0J7mDZOgXAA50B4ywzZYXZWgVsQY_tioXeQdbFrgRmW4WOnExXPA3mswHhANRG_vne78_Eo4zwOEjKYPyiYJ-GVgKnRrfnQlkzwqHe2zbFrfj7ins24lSnYA0eptZdioM5YURQ6lraG0Wq_SjofqR8QrcodHVbounsdJjfvpNkINJNguyac_M1qWS0xJYuo8VXRCFz2bmQqSz3UwPbz8VBC9WJ7QogUEdYYWB8tL9a1Fe2SgcvpMD21Z4CfePZ64E0lTYJ79ofE-QBh8noR0JbakmIocvyFEUZxVudPpLE480PU685b0xhosrezHmpnldh_kK8VxfXoopGZ60p_Bc1Y3xBxw40zk8lFExkJVAXf82Dpspegn0Bk0cGJ98DUlkAQhppCurMN_4grWl43MPEndIDqlRQz02ALGxkBPImKhb53menktKzcOw3LJtvSdDdCa1sUoNeZRPiBPYGh-OCsAg3-vDQ6pPox2MGgodnnQ4bT_LIW9HK-kmLMlKoApaLpYkimtw9Kv2TLfr6_WaVakX8cDgDUPT6OJrxcwuCu74IUymTdiwvgZjKT_gEGHPooDT9BghfndJidi5gixCBXcuZsREfyog4I__75-Y5YV31hZrRrjRt2bIacakQs9c2UFy6DN__NZd3SU3J4dUPBimIk0GOByMzDVbdPcVYk38TThI2ReE3Rb2DRrR-PQlfkAq_KpNGIqW9VY3yRhGW0gCjBOCvu3MTxckpL9No7GjdhVi2TNeZWCsNzyHu5c3kNU3u7WY80jT7R9mUMiaQY2RF4Q4bSSg51FCbh6kb98XYifYhr9m5o4KMQIVustKwR3vhdObMGNVh9jeFop5s2QTLmZ5voA5-nGfpIPDksU6cSI8rJTHmkTeTW2-vrI19sFoXoIlnWe1I3Zvw8JmR8H-PXsqnPBR1a0ezZv8xmp4msR1EekdBckG3mHwDoMLcJOA6yOhC7tgp0eigzQI5_3FdUIjSeDsCSxM8zBMe43FZ3rjMd1XX5I-pIO6C1IciFXAdzg_2DdpYlEAev2QbwfBfX_sxJl_LWqZqrjAxQC6njtZl8hisnIV4pu4UTlJkLNHf-RV2vQFqMnYu7jwXMbgNyz6NPaYlGzVbgjoAbddI6g-eyfixNwDq5Ve5_eqdBozo7EkUiSoLOW9UUNoLTq2Wa345TAsFYSQ6Y0OVBxP718YyJL4Sri729nke5nfaQctBy55GDijZ4BH9JYBgib7i-VDB44RrLqjSBCznBNcaN3EDtbHaMoq7_JW74FIzlwqhp0vqgX69hprmRbFZ0Sd4uJq5SCCEsnwwUh0fq6hds5duQFGVHAlMHwkIcDFbIlSKTat5A23QBzdX6sr_vZVS7qy7kJAZMYUu-68-jMJyBH48gNhVupqnmlvkkl32kITnA_CaE8ZL5tKDdzSBGryAayF-jUhgv4LEoiEn65Evfj-cKTgRxKYUappibE8mZHdpcRGB9ooAcBVwNYA84E408yrz4b-nU6RI4DEAhRj5G27p0EkO6CkX3vD0YY7KOXOePz032eUZMMpV6N1Vw7Fb5GiQ4gw4DnmKzSZEzkrVTVbCbMO8M4ODxUV_wSWFP1qjHfvPLHnM4LxqbhR_juis2FHN8I4Cb6UH9PQvYVXNughh21FeW2ZK4Ym5ZIgmm1mi8akb4BzlWiHNwL7p892Kz2p10NSIKusHUhTveYIAlQscU_mEZUplf6jT90QvkbVGHpTToL9eRm3h3koRmMD4jNIZvJcKyWBoErOdvd1bujmoWej2Df630Swa3jwScihbCn69zF2Dw12IpEItJKxKXwu8990X0U4XEcgxz89vcSXl4hC7q60JFInXlUCKZ9-HkHNfzaHctJEYl5RgsXs8kQrODemcXBeYdThWutoDs8eJHQFnr2PBqhcrnAqgxX3oXWQZ8tjJrBK25UZgd8rbTJi8JfUYoFQ9Vz6DcDxTcAhb4HmZp_Ac_T02zbyOuHiKVDXobHPpnfTtIFvSx4Sh59U96O0Kto3fKQmVmW5DP0lMvgGaNhwmsf8pBeOEyh5sM9Ii4YUNBt67RH4ZXskBREVqEuXfrZHZiY__zeIbtmRGQ-Jbqd-YAhuXY_ssWHncCMRXZUUr-9xpfYDzcrxPyPkF41HaW_IYyTPAGELb5kdzmo9egPuxDSzRUdMFFnXWSL4NaGNzbtpaop7jDfvvHiLCa8v30lXt_EKMs3OGOmpM9xgOdbdn0xjE-iwQzj1Z8dXi2X2h35P7EkI7OgAi49eBZK_eDpFgHmDDtiUeiOZ3numQtH5dzkdrzYLwOr4dqKS2Nll8beTgSkcMKC1S02c_qg9WnSHnhaiWPEcgUuc3wq7u1bzhypBYrhJ91HGt0z-rvOsqbNG3hB6h1__pVNdNPoeszokCRj_4UYmiLSS7dfxvGpSUebG3hjN3HAAa1MseeYMZi23heYiLkw_EJH57RowYgCClZwayHpTvbtV9XkPewzX6Qx-2X-6roDG2LFp68BVq2OT03rUDtgiz5aMPBS4-wZAyAGD26oD1p1Cy7yMQCvF15JvHgba0s41LE_SSVHPFRZWTKJBGA6VsdZqBlLBjl5JW4ZCo0hZ5RB-PVOlloLSBjSLwnYkD7-WbQwRVAW4RUZEWD4owH22heDUu9tj_hiDKIUgLdsk9HTfO-CdwyLSHhlklf81gXtIzvv5uvb9Sh_qTZLymKeL5xdV3H8ZD5eEPxhXNihIQAv7zNzUE0QxFpBDcPJvVOLKoYBUD97nzJqXDlM3fGHwyei84PaGkyvMekM5YA=\u0026price=RHpxYzZxMHdHM0NvTnk1bQV2lp27ZfV9aQH7vg==", "https://rcv.aiclk.com/show/cpm?CAAQWQ.jzySfyp7Ei4ZEXr_pGCDP3nnCilj936O8NksEUWkp-BRYiJ5E5CX8sYq45g9dMI31z5hmWR8le47TzVTvDze4Dze4DySzrVzfhE_CGTlCbEe4z47zyTzNz060h-TRzy0zphzTzWfth4TzrzzQzzVZWDmqhTmz3zjiHzJCbhJ4X03vD-GCD-nCD4J9zrVzozzczjzz0jTz0jSz0j8z0jwz0juz0jez0jmz0Dzz0DfzX_kwf2-KT_-27o22T604GDRRW1RNVXk2VbkOP_OVVP22Tyl4vcqVviebMw2BvNzhXyenYZUn7fvnmNoxxdr3zyzmh6Y8op3EDV2a_CN4SlwYSle9iCqaRrRPoC39UpeaUp2AUpO9igK9ZFBaZFw8wFHYjnlPNk2PwnHEQ-2CZp-9NYk4bzl9i4_CDsbCNT_YX9nviWkCN4ZCG-J9Xizzhjfzhj0zhj8zwzJYb0JCi4_4GyeCb-evX5JCGEGYDrkvDk-Yb6-CGTm4uzjzfVj6NC2PSnbPZF3YitK9_WHcRkdYi6-YUfmzhDzzhDTzhD0zhD9zhDhzhDVzhDdzhDmzhjzzejTzej0zejwzeGRku1Vqx2ktT1VqxSuzeRRuP1ktPoRkafdzdrHCX9G4byJ9ipb4GTdYX5_4Q4dYNTdvX6HCQydvQ9nCgzDzCzDzChDzvzDzvhDzLzDzLVDzTzyzThyzWzyzWhyzfzyz6TojzT0kzp0zQWkjNCVAopeEGV2aZ6e8dl-P_AKPQFHYQsdaNC2P_pk8_CkERYO9Z5K9ZFBaZCd9UOnENsHYQsdaZCd9UOnENsHYQsdaN6e8GFb9G3e45Eev6VNPis-8i6IEZFlENCkLUp2AUpO9iFd0ehMyhhm4Dze4Dze4SVoCGEdCX9_4DTNCGEdCX9_4oem4Dze4Dze4UeJ4Drg9ZFBaNOOYNsKaR6l8Z6KIDymL-zzShr7yRCVP_AIYUHe8UWkLXTlvXTe4oVpYN6K9_kX8Zke0in38UCe9il74RCq8UrrPRpOE_rHPXlW56FW5lztp6s0U3k0aykvs-6WXypI5-soS5Fvayps56Fs53sSchFG8QF_U_Wk9ZFdYD3l4Dr7y_sGY5nkA3lHAQsd8i6t0Z6b8Qs7jRCtP_pIY_W2AUr7yopOPisGEQ6KLilHcDV3vQH7yQCt8iCqU_Wk9ZFdYD3l4Dr7yRCVP_AIYNktAQsdUZnkAG3Z4oVY9Ure5Q6b8Z6RY5Ct8iCqpNktAQsdLX4e4oVs9ZJ2EZsDPQkb83lk9UClENsBYin3hhyzwhQnz0hzyhhTzrzzQzzhzjTz4NHCP_OOPQJHaG5K4jzViDyJvdr48inlcjrmvDYICb0OTy6eEQJksZswSZk3aG5GCdmGCwzVS3H5X5etTQJO8Z5hpZsb8ZgOTyCVENFBYSgmCwmeab0dCDzKCG5h5Z6N9UWOaG5GCdmGCbhj0hmlvjmdCD9K4X0eabTdCyVh9XEd4ZsHYi9J4ZpbCN6wCN4e4QsbCGHbCGzmYQCN4ZC0hzF9KzHhGhFVzRTz-hy4jzTSjzhryzT9rwzzVhy89NORaiCe9dlw9iCqYin-ai6-EdlHYohBCXazzPxdzgzrJK-yezo1mhLzzIDtzgzr-v3DezQ3w0Xzz8vGr4zrGChDezQnw0XzzAber4zrt7xujEzrdYzyezoo1hXzzYMJr4zrgxdO94zrGEdO94zrlceDezobxzLzzEGOzgzruKVDezozxzLzz8UMzgzrOK-DezQmxzLzzIQDrEzr-M3DezQXFeXzzYo_r4zr7vEDezoT70XzzA2tzgzrJIVyezonKhXzzEcur4zrKm46ezyaezQ6x0LzzI86rEzr2E0DezoC70XzzEQyr4zrxOhyezQfJzXzzYbBzgzrVxdO94zrHMhDezQlH0UzzYQJr4zrZYVyezojuhXzzISOr4zr7KeDezoYneLzz9d-r4zrucVDezQs7zLzz8LOzgzrnM-DezQqRzXzzYLGr4zrtuhyezQ9FeXzz9GWr4zrVEiO94zrB9-yezoIFhXzzIZtmhXzz87Er4zrZ2Tyezox7zLzz8oBzgzrNayyezoABzXzzEbZr4zrqc-Dezok7eLzzcMOrfzQzaTQDHzzQzzhzDhz0z6Tz6zzKh9SjhmlvjmdCD9K4X0eabTdCrzj3z9zZh9z7h9z"],
+                        "clk": ["https://www.pangolin-dsp-toutiao.com/api/common/ads/click?extra=SRi3XZ2UGPNEW-uqOcN9qUX4KLrYgRbHCoZchH-PYd20iE0Riw9l0ipUl6yNtyHZZGow-4_WM5o-qUaSXHVSiJwXzOOZTYK16fOMgIcO61GQnUyTuYuxxz4D_hasPS4lCJP06hquuFOP0WmQdWFky-IhbvZPE8HcnY1N-A9iZrmFHBxsDl2gc7sclwTq0QPqRh7dF_ErZPwdBcWmDZexdhnHfNbMe87KzrlhKzILGJyWwnoOVZFADHrULB593sTZv4pviuc4_GSJBNEYZFaoBFbaAyzIAR_brAIG0FjFUyTaFEd6X49hs6tGXw1M68wbS7zG1UTZMTMyImiOl--QW5zYefrWA__43Eyl5qBju1Bp3PF-3ZOr0J7mDZOgXAA50B4ywzZYXZWgVsQY_tioXeQdbFrgRmW4WOnExXPA3mswHhANRG_vne78_Eo4zwOEjKYPyiYJ-GVgKnRrfnQlkzwqHe2zbFrfj7ins24lSnYA0eptZdioM5YURQ6lraG0Wq_SjofqR8QrcodHVbounsdJjfvpNkINJNguyac_M1qWS0xJYuo8VXRCFz2bmQqSz3UwPbz8VBC9WJ7QogUEdYYWB8tL9a1Fe2SgcvpMD21Z4CfePZ64E0lTYJ79ofE-QBh8noR0JbakmIocvyFEUZxVudPpLE480PU685b0xhosrezHmpnldh_kK8VxfXoopGZ60p_Bc1Y3xBxw40zk8lFExkJVAXf82Dpspegn0Bk0cGJ98DUlkAQhppCurMN_4grWl43MPEndIDqlRQz02ALGxkBPImKhb53menktKzcOw3LJtvSdDdCa1sUoNeZRPiBPYGh-OCsAg3-vDQ6pPox2MGgodnnQ4bT_LIW9HK-kmLMlKoApaLpYkimtw9Kv2TLfr6_WaVakX8cDgDUPT6OJrxcwuCu74IUymTdiwvgZjKT_gEGHPooDT9BghfndJidi5gixCBXcuZsREfyog4I__75-Y5YV31hZrRrjRt2bIacakQs9c2UFy6DN__NZd3SU3J4dUPBimIk0GOByMzDVbdPcVYk38TThI2ReE3Rb2DRrR-PQlfkAq_KpNGIqW9VY3yRhGW0gCjBOCvu3MTxckpL9No7GjdhVi2TNeZWCsNzyHu5c3kNU3u7WY80jT7R9mUMiaQY2RF4Q4bSSg51FCbh6kb98XYifYhr9m5o4KMQIVustKwR3vhdObMGNVh9jeFop5s2QTLmZ5voA5-nGfpIPDksU6cSI8rJTHmkTeTW2-vrI19sFoXoIlnWe1I3Zvw8JmR8H-PXsqnPBR1a0ezZv8xmp4msR1EekdBckG3mHwDoMLcJOA6yOhC7tgp0eigzQI5_3FdUIjSeDsCSxM8zBMe43FZ3rjMd1XX5I-pIO6C1IciFXAdzg_2DdpYlEAev2QbwfBfX_sxJl_LWqZqrjAxQC6njtZl8hisnIV4pu4UTlJkLNHf-RV2vQFqMnYu7jwXMbgNyz6NPaYlGzVbgjoAbddI6g-eyfixNwDq5Ve5_eqdBozo7EkUiSoLOW9UUNoLTq2Wa345TAsFYSQ6Y0OVBxP718YyJL4Sri729nke5nfaQctBy55GDijZ4BH9JYBgib7i-VDB44RrLqjSBCznBNcaN3EDtbHaMoq7_JW74FIzlwqhp0vqgX69hprmRbFZ0Sd4uJq5SCCEsnwwUh0fq6hds5duQFGVHAlMHwkIcDFbIlSKTat5A23QBzdX6sr_vZVS7qy7kJAZMYUu-68-jMJyBH48gNhVupqnmlvkkl32kITnA_CaE8ZL5tKDdzSBGryAayF-jUhgv4LEoiEn65Evfj-cKTgRxKYUappibE8mZHdpcRGB9ooAcBVwNYA84E408yrz4b-nU6RI4DEAhRj5G27p0EkO6CkX3vD0YY7KOXOePz032eUZMMpV6N1Vw7Fb5GiQ4gw4DnmKzSZEzkrVTVbCbMO8M4ODxUV_wSWFP1qjHfvPLHnM4LxqbhR_juis2FHN8I4Cb6UH9PQvYVXNughh21FeW2ZK4Ym5ZIgmm1mi8akb4BzlWiHNwL7p892Kz2p10NSIKusHUhTveYIAlQscU_mEZUplf6jT90QvkbVGHpTToL9eRm3h3koRmMD4jNIZvJcKyWBoErOdvd1bujmoWej2Df630Swa3jwScihbCn69zF2Dw12IpEItJKxKXwu8990X0U4XEcgxz89vcSXl4hC7q60JFInXlUCKZ9-HkHNfzaHctJEYl5RgsXs8kQrODemcXBeYdThWutoDs8eJHQFnr2PBqhcrnAqgxX3oXWQZ8tjJrBK25UZgd8rbTJi8JfUYoFQ9Vz6DcDxTcAhb4HmZp_Ac_T02zbyOuHiKVDXobHPpnfTtIFvSx4Sh59U96O0Kto3fKQmVmW5DP0lMvgGaNhwmsf8pBeOEyh5sM9Ii4YUNBt67RH4ZXskBREVqEuXfrZHZiY__zeIbtmRGQ-Jbqd-YAhuXY_ssWHncCMRXZUUr-9xpfYDzcrxPyPkF41HaW_IYyTPAGELb5kdzmo9egPuxDSzRUdMFFnXWSL4NaGNzbtpaop7jDfvvHiLCa8v30lXt_EKMs3OGOmpM9xgOdbdn0xjE-iwQzj1Z8dXi2X2h35P7EkI7OgAi49eBZK_eDpFgHmDDtiUeiOZ3numQtH5dzkdrzYLwOr4dqKS2Nll8beTgSkcMKC1S02c_qg9WnSHnhaiWPEcgUuc3wq7u1bzhypBYrhJ91HGt0z-rvOsqbNG3hB6h1__pVNdNPoeszokCRj_4UYmiLSS7dfxvGpSUebG3hjN3HAAa1MseeYMZi23heYiLkw_EJH57RowYgCClZwayHpTvbtV9XkPewzX6Qx-2X-6roDG2LFp68BVq2OT03rUDtgiz5aMPBS4-wZAyAGD26oD1p1Cy7yMQCvF15JvHgba0s41LE_SSVHPFRZWTKJBGA6VsdZqBlLBjl5JW4ZCo0hZ5RB-PVOlloLSBjSLwnYkD7-WbQwRVAW4RUZEWD4owH22heDUu9tj_hiDKIUgLdsk9HTfO-CdwyLSHhlklf81gXtIzvv5uvb9Sh_qTZLymKeL5xdV3H8ZD5eEPxhXNihIQAv7zNzUE0QxFpBDcPJvVOLKoYBUD97nzJqXDlM3fGHwyei84PaGkyvMekM5YA=", "https://rcv.aiclk.com/click?CAAQSA.zrrnsmP-T5NcTOd4PeFUHvaaF5uzpv18fbRYTKJRPBZi65lQTQFOfY6wNQVpygkv7rQ3GJifuEN-XrLXxUrENUrENUmnrdLrs3T4FeXuFWTENrN-rmXrbrA1A3BXirmArP3rXrJsj3NXrdrr2rrLcJUGw3XGrvrz5MrlFW3lNOAvxUBeFUBaFUNlprdLrSrrDrzrrAzXrAznrAzfrAzorAzCrAzErAzGrAUrrAUsrO4Ros9BhX4B9-S99X1ANeUiiJ7ibLOR9LWR8H48LLH99XmuNxDwLx5EWgo9Zxbr3OmEa6cKa-sxaGbS00ydvrmrG316fSPvTUL9I4FbNnuo6nuEp5FwIidiHSFvpKPEIKP9_KP8p5VhpctZIctofotM6zauHbR9HoaMT2B9FcPBpb6RNWrup5N4FUYWFbX46Opax5JRFbNcFeBlpO5rr3zsr3zAr3zfrorl6WAlF5N4NemEFWBExOQlFeTe6UdRxURB6W1BFeXGNCrzrsLz1bF9HnaWHctv65jhp4JMDiRy651B6KsGr3Urr3UXr3UAr3Upr3U3r3ULr3Uyr3UGr3zrrEzXrEzArEzorEeiRC7Lw09RjX7Lw0nCrEiiCH7RjHSiRIsyrydMFOpeNWmlp5PWNeXy6OQ4N2Ny6bXyxO1MF2myx2paFVrUrFrUrF3UrxrUrx3UrqrUrqLUrXrmrX3mrJrmrJ3mrsrmr1XSzrXARrPAr2JRzbFL_SPETeL9Ic1EfyuBH4_hH2tM62YyIbF9H4PRf4FRTi68pcQhpctZIcFypK8aTbYM62YyIcFypK8aTbYM62YyIb1EfetWpevENQTEx1LbH5YBf51kTctuTbFRqKP9_KP8p5tyAE3gm33GNUrENUrENnLSFeTyFOp4NUXbFeTyFOp4NSEGNUrENUrENKElNUdVpctZIb886bYhIi1ufc1hkUmGqBrrn3d-miFLH4_k6KMEfKJRqOXuxOXENSLP6b1hp4ROfcREA5avfKFEp5u-NiFwfKddHiP8T4dMHOuJQ1tJQurjP1YAKvRAImRxYB1JOmPkQBYSnQtxImPYQ1tYQvYnD3tef2t4K4JRpcty6UvuNUd-m4Ye6QaR_vuM_2Yyf51jAc1Wf2Y-ziFjH4Pk64J9_Kd-mSP8H5YeT21hq5uMDULvx2M-m2Fjf5FwK4JRpcty6UvuNUd-miFLH4_k6bRj_2YyKcaR_evcNSL6pKdEQ21Wfc1i6QFjf5FwPbRj_2YyqONENSLYpcl9TcYUH2RWfvuRpKFuTbYZ65av33mro32arA3rm33Xrdrr2rr3rzXrNbMFH488H2lMIeQhNzrL5UmlxydNf5auDzdGxU6kFWA8Xm1ET2lRYcYoncRvIeQeFyGeForLnvMQOQEjX2l8fcQ3PcYWfcV8XmFLTbtZ6nVGFoGEIWAyFUrhFeQ3Qc1bpKJ8IeQeFyGeFW3zA3GuxzGyFUphNOAEIWXyFmL3pOTyNcYM65plNcPWFb1oFbNEN2YWFeMWFerG62FbNcFA3rtphrM3e3tLriXrB3mNzrXnzr3dmrXpdorrL3mfpb8iI5FEpyuop5Fw65aBI51BTyuM6S3ZFOIrrH0yrVrdlhBmErS7G3qrrkUjrVrdBxvUEr2voAOrrfxedNrdeF3UEr2aoAOrr_WEdNrdj-0CzTrdy6rmErSS73Orr6gldNrdV0y8pNrdeTy8pNrduDEUErSW0rqrrTe8rVrdChLUErSr0rqrrfKgrVrd8hBUEr2G0rqrrk2UdTrdBgvUEr2OtEOrr6S4dNrd-xTUErSX-AOrr_9jrVrdlkLmErSah3OrrTDCdNrdhGN1ErmIEr210Aqrrkf1dTrd9TAUErSF-AOrrT2mdNrd083mEr2slrOrr6WZrVrdL0y8pNrdMg3UEr2uMAKrr62ldNrdc6LmErSzC3Orrkn8dNrd-hEUErS6aEqrrpyBdNrdCDLUEr2Y-rqrrfq8rVrdagBUEr2wirOrr6qedNrdjC3mEr2ptEOrrpeJdNrdLT58pNrdZpBmErSkt3OrrkcjG3Orrf-TdNrdc9XmErS0-rqrrfSZrVrdbImmErS_ZrOrrTWcdNrdwDBUErSR-EqrrDg8dsr2rIX2UMrr2rr3rU3rAr1Xr1rrh3pnz3GuxzGyFUphNOAEIWXyFdrzvrprc3pr-3pr"],
+                        "dp_url": "usage_crazyreader://com.cootek.crazyreader.android?params=literature%3A%2F%2FentranceBookRead%3Fresult%3D%7B%22bookId%22%3A%2212530%22%7D\u0026backurl=",
+                        "dp_clk": ["https://www.pangolin-dsp-toutiao.com/api/common/ads/event?extra=SRi3XZ2UGPNEW-uqOcN9qUX4KLrYgRbHCoZchH-PYd20iE0Riw9l0ipUl6yNtyHZZGow-4_WM5o-qUaSXHVSiJwXzOOZTYK16fOMgIcO61GQnUyTuYuxxz4D_hasPS4lCJP06hquuFOP0WmQdWFky-IhbvZPE8HcnY1N-A9iZrmFHBxsDl2gc7sclwTq0QPqRh7dF_ErZPwdBcWmDZexdhnHfNbMe87KzrlhKzILGJyWwnoOVZFADHrULB593sTZv4pviuc4_GSJBNEYZFaoBFbaAyzIAR_brAIG0FjFUyTaFEd6X49hs6tGXw1M68wbS7zG1UTZMTMyImiOl--QW5zYefrWA__43Eyl5qBju1Bp3PF-3ZOr0J7mDZOgXAA50B4ywzZYXZWgVsQY_tioXeQdbFrgRmW4WOnExXPA3mswHhANRG_vne78_Eo4zwOEjKYPyiYJ-GVgKnRrfnQlkzwqHe2zbFrfj7ins24lSnYA0eptZdioM5YURQ6lraG0Wq_SjofqR8QrcodHVbounsdJjfvpNkINJNguyac_M1qWS0xJYuo8VXRCFz2bmQqSz3UwPbz8VBC9WJ7QogUEdYYWB8tL9a1Fe2SgcvpMD21Z4CfePZ64E0lTYJ79ofE-QBh8noR0JbakmIocvyFEUZxVudPpLE480PU685b0xhosrezHmpnldh_kK8VxfXoopGZ60p_Bc1Y3xBxw40zk8lFExkJVAXf82Dpspegn0Bk0cGJ98DUlkAQhppCurMN_4grWl43MPEndIDqlRQz02ALGxkBPImKhb53menktKzcOw3LJtvSdDdCa1sUoNeZRPiBPYGh-OCsAg3-vDQ6pPox2MGgodnnQ4bT_LIW9HK-kmLMlKoApaLpYkimtw9Kv2TLfr6_WaVakX8cDgDUPT6OJrxcwuCu74IUymTdiwvgZjKT_gEGHPooDT9BghfndJidi5gixCBXcuZsREfyog4I__75-Y5YV31hZrRrjRt2bIacakQs9c2UFy6DN__NZd3SU3J4dUPBimIk0GOByMzDVbdPcVYk38TThI2ReE3Rb2DRrR-PQlfkAq_KpNGIqW9VY3yRhGW0gCjBOCvu3MTxckpL9No7GjdhVi2TNeZWCsNzyHu5c3kNU3u7WY80jT7R9mUMiaQY2RF4Q4bSSg51FCbh6kb98XYifYhr9m5o4KMQIVustKwR3vhdObMGNVh9jeFop5s2QTLmZ5voA5-nGfpIPDksU6cSI8rJTHmkTeTW2-vrI19sFoXoIlnWe1I3Zvw8JmR8H-PXsqnPBR1a0ezZv8xmp4msR1EekdBckG3mHwDoMLcJOA6yOhC7tgp0eigzQI5_3FdUIjSeDsCSxM8zBMe43FZ3rjMd1XX5I-pIO6C1IciFXAdzg_2DdpYlEAev2QbwfBfX_sxJl_LWqZqrjAxQC6njtZl8hisnIV4pu4UTlJkLNHf-RV2vQFqMnYu7jwXMbgNyz6NPaYlGzVbgjoAbddI6g-eyfixNwDq5Ve5_eqdBozo7EkUiSoLOW9UUNoLTq2Wa345TAsFYSQ6Y0OVBxP718YyJL4Sri729nke5nfaQctBy55GDijZ4BH9JYBgib7i-VDB44RrLqjSBCznBNcaN3EDtbHaMoq7_JW74FIzlwqhp0vqgX69hprmRbFZ0Sd4uJq5SCCEsnwwUh0fq6hds5duQFGVHAlMHwkIcDFbIlSKTat5A23QBzdX6sr_vZVS7qy7kJAZMYUu-68-jMJyBH48gNhVupqnmlvkkl32kITnA_CaE8ZL5tKDdzSBGryAayF-jUhgv4LEoiEn65Evfj-cKTgRxKYUappibE8mZHdpcRGB9ooAcBVwNYA84E408yrz4b-nU6RI4DEAhRj5G27p0EkO6CkX3vD0YY7KOXOePz032eUZMMpV6N1Vw7Fb5GiQ4gw4DnmKzSZEzkrVTVbCbMO8M4ODxUV_wSWFP1qjHfvPLHnM4LxqbhR_juis2FHN8I4Cb6UH9PQvYVXNughh21FeW2ZK4Ym5ZIgmm1mi8akb4BzlWiHNwL7p892Kz2p10NSIKusHUhTveYIAlQscU_mEZUplf6jT90QvkbVGHpTToL9eRm3h3koRmMD4jNIZvJcKyWBoErOdvd1bujmoWej2Df630Swa3jwScihbCn69zF2Dw12IpEItJKxKXwu8990X0U4XEcgxz89vcSXl4hC7q60JFInXlUCKZ9-HkHNfzaHctJEYl5RgsXs8kQrODemcXBeYdThWutoDs8eJHQFnr2PBqhcrnAqgxX3oXWQZ8tjJrBK25UZgd8rbTJi8JfUYoFQ9Vz6DcDxTcAhb4HmZp_Ac_T02zbyOuHiKVDXobHPpnfTtIFvSx4Sh59U96O0Kto3fKQmVmW5DP0lMvgGaNhwmsf8pBeOEyh5sM9Ii4YUNBt67RH4ZXskBREVqEuXfrZHZiY__zeIbtmRGQ-Jbqd-YAhuXY_ssWHncCMRXZUUr-9xpfYDzcrxPyPkF41HaW_IYyTPAGELb5kdzmo9egPuxDSzRUdMFFnXWSL4NaGNzbtpaop7jDfvvHiLCa8v30lXt_EKMs3OGOmpM9xgOdbdn0xjE-iwQzj1Z8dXi2X2h35P7EkI7OgAi49eBZK_eDpFgHmDDtiUeiOZ3numQtH5dzkdrzYLwOr4dqKS2Nll8beTgSkcMKC1S02c_qg9WnSHnhaiWPEcgUuc3wq7u1bzhypBYrhJ91HGt0z-rvOsqbNG3hB6h1__pVNdNPoeszokCRj_4UYmiLSS7dfxvGpSUebG3hjN3HAAa1MseeYMZi23heYiLkw_EJH57RowYgCClZwayHpTvbtV9XkPewzX6Qx-2X-6roDG2LFp68BVq2OT03rUDtgiz5aMPBS4-wZAyAGD26oD1p1Cy7yMQCvF15JvHgba0s41LE_SSVHPFRZWTKJBGA6VsdZqBlLBjl5JW4ZCo0hZ5RB-PVOlloLSBjSLwnYkD7-WbQwRVAW4RUZEWD4owH22heDUu9tj_hiDKIUgLdsk9HTfO-CdwyLSHhlklf81gXtIzvv5uvb9Sh_qTZLymKeL5xdV3H8ZD5eEPxhXNihIQAv7zNzUE0QxFpBDcPJvVOLKoYBUD97nzJqXDlM3fGHwyei84PaGkyvMekM5YA=\u0026event=14", "https://million-api.aiclk.com/external/common/trace?t=dplink_click\u0026iclicashsid=Dzqc6q0wG3CoNy5mBcAijiUqreFKgelTqCSiVk1O\u0026opt_ideaid=1681149619210328"],
+                        "dp_fail_monitor": ["https://www.pangolin-dsp-toutiao.com/api/common/ads/event?extra=SRi3XZ2UGPNEW-uqOcN9qUX4KLrYgRbHCoZchH-PYd20iE0Riw9l0ipUl6yNtyHZZGow-4_WM5o-qUaSXHVSiJwXzOOZTYK16fOMgIcO61GQnUyTuYuxxz4D_hasPS4lCJP06hquuFOP0WmQdWFky-IhbvZPE8HcnY1N-A9iZrmFHBxsDl2gc7sclwTq0QPqRh7dF_ErZPwdBcWmDZexdhnHfNbMe87KzrlhKzILGJyWwnoOVZFADHrULB593sTZv4pviuc4_GSJBNEYZFaoBFbaAyzIAR_brAIG0FjFUyTaFEd6X49hs6tGXw1M68wbS7zG1UTZMTMyImiOl--QW5zYefrWA__43Eyl5qBju1Bp3PF-3ZOr0J7mDZOgXAA50B4ywzZYXZWgVsQY_tioXeQdbFrgRmW4WOnExXPA3mswHhANRG_vne78_Eo4zwOEjKYPyiYJ-GVgKnRrfnQlkzwqHe2zbFrfj7ins24lSnYA0eptZdioM5YURQ6lraG0Wq_SjofqR8QrcodHVbounsdJjfvpNkINJNguyac_M1qWS0xJYuo8VXRCFz2bmQqSz3UwPbz8VBC9WJ7QogUEdYYWB8tL9a1Fe2SgcvpMD21Z4CfePZ64E0lTYJ79ofE-QBh8noR0JbakmIocvyFEUZxVudPpLE480PU685b0xhosrezHmpnldh_kK8VxfXoopGZ60p_Bc1Y3xBxw40zk8lFExkJVAXf82Dpspegn0Bk0cGJ98DUlkAQhppCurMN_4grWl43MPEndIDqlRQz02ALGxkBPImKhb53menktKzcOw3LJtvSdDdCa1sUoNeZRPiBPYGh-OCsAg3-vDQ6pPox2MGgodnnQ4bT_LIW9HK-kmLMlKoApaLpYkimtw9Kv2TLfr6_WaVakX8cDgDUPT6OJrxcwuCu74IUymTdiwvgZjKT_gEGHPooDT9BghfndJidi5gixCBXcuZsREfyog4I__75-Y5YV31hZrRrjRt2bIacakQs9c2UFy6DN__NZd3SU3J4dUPBimIk0GOByMzDVbdPcVYk38TThI2ReE3Rb2DRrR-PQlfkAq_KpNGIqW9VY3yRhGW0gCjBOCvu3MTxckpL9No7GjdhVi2TNeZWCsNzyHu5c3kNU3u7WY80jT7R9mUMiaQY2RF4Q4bSSg51FCbh6kb98XYifYhr9m5o4KMQIVustKwR3vhdObMGNVh9jeFop5s2QTLmZ5voA5-nGfpIPDksU6cSI8rJTHmkTeTW2-vrI19sFoXoIlnWe1I3Zvw8JmR8H-PXsqnPBR1a0ezZv8xmp4msR1EekdBckG3mHwDoMLcJOA6yOhC7tgp0eigzQI5_3FdUIjSeDsCSxM8zBMe43FZ3rjMd1XX5I-pIO6C1IciFXAdzg_2DdpYlEAev2QbwfBfX_sxJl_LWqZqrjAxQC6njtZl8hisnIV4pu4UTlJkLNHf-RV2vQFqMnYu7jwXMbgNyz6NPaYlGzVbgjoAbddI6g-eyfixNwDq5Ve5_eqdBozo7EkUiSoLOW9UUNoLTq2Wa345TAsFYSQ6Y0OVBxP718YyJL4Sri729nke5nfaQctBy55GDijZ4BH9JYBgib7i-VDB44RrLqjSBCznBNcaN3EDtbHaMoq7_JW74FIzlwqhp0vqgX69hprmRbFZ0Sd4uJq5SCCEsnwwUh0fq6hds5duQFGVHAlMHwkIcDFbIlSKTat5A23QBzdX6sr_vZVS7qy7kJAZMYUu-68-jMJyBH48gNhVupqnmlvkkl32kITnA_CaE8ZL5tKDdzSBGryAayF-jUhgv4LEoiEn65Evfj-cKTgRxKYUappibE8mZHdpcRGB9ooAcBVwNYA84E408yrz4b-nU6RI4DEAhRj5G27p0EkO6CkX3vD0YY7KOXOePz032eUZMMpV6N1Vw7Fb5GiQ4gw4DnmKzSZEzkrVTVbCbMO8M4ODxUV_wSWFP1qjHfvPLHnM4LxqbhR_juis2FHN8I4Cb6UH9PQvYVXNughh21FeW2ZK4Ym5ZIgmm1mi8akb4BzlWiHNwL7p892Kz2p10NSIKusHUhTveYIAlQscU_mEZUplf6jT90QvkbVGHpTToL9eRm3h3koRmMD4jNIZvJcKyWBoErOdvd1bujmoWej2Df630Swa3jwScihbCn69zF2Dw12IpEItJKxKXwu8990X0U4XEcgxz89vcSXl4hC7q60JFInXlUCKZ9-HkHNfzaHctJEYl5RgsXs8kQrODemcXBeYdThWutoDs8eJHQFnr2PBqhcrnAqgxX3oXWQZ8tjJrBK25UZgd8rbTJi8JfUYoFQ9Vz6DcDxTcAhb4HmZp_Ac_T02zbyOuHiKVDXobHPpnfTtIFvSx4Sh59U96O0Kto3fKQmVmW5DP0lMvgGaNhwmsf8pBeOEyh5sM9Ii4YUNBt67RH4ZXskBREVqEuXfrZHZiY__zeIbtmRGQ-Jbqd-YAhuXY_ssWHncCMRXZUUr-9xpfYDzcrxPyPkF41HaW_IYyTPAGELb5kdzmo9egPuxDSzRUdMFFnXWSL4NaGNzbtpaop7jDfvvHiLCa8v30lXt_EKMs3OGOmpM9xgOdbdn0xjE-iwQzj1Z8dXi2X2h35P7EkI7OgAi49eBZK_eDpFgHmDDtiUeiOZ3numQtH5dzkdrzYLwOr4dqKS2Nll8beTgSkcMKC1S02c_qg9WnSHnhaiWPEcgUuc3wq7u1bzhypBYrhJ91HGt0z-rvOsqbNG3hB6h1__pVNdNPoeszokCRj_4UYmiLSS7dfxvGpSUebG3hjN3HAAa1MseeYMZi23heYiLkw_EJH57RowYgCClZwayHpTvbtV9XkPewzX6Qx-2X-6roDG2LFp68BVq2OT03rUDtgiz5aMPBS4-wZAyAGD26oD1p1Cy7yMQCvF15JvHgba0s41LE_SSVHPFRZWTKJBGA6VsdZqBlLBjl5JW4ZCo0hZ5RB-PVOlloLSBjSLwnYkD7-WbQwRVAW4RUZEWD4owH22heDUu9tj_hiDKIUgLdsk9HTfO-CdwyLSHhlklf81gXtIzvv5uvb9Sh_qTZLymKeL5xdV3H8ZD5eEPxhXNihIQAv7zNzUE0QxFpBDcPJvVOLKoYBUD97nzJqXDlM3fGHwyei84PaGkyvMekM5YA=\u0026event=15"],
+                        "dp_installed": ["https://www.pangolin-dsp-toutiao.com/api/common/ads/event?extra=SRi3XZ2UGPNEW-uqOcN9qUX4KLrYgRbHCoZchH-PYd20iE0Riw9l0ipUl6yNtyHZZGow-4_WM5o-qUaSXHVSiJwXzOOZTYK16fOMgIcO61GQnUyTuYuxxz4D_hasPS4lCJP06hquuFOP0WmQdWFky-IhbvZPE8HcnY1N-A9iZrmFHBxsDl2gc7sclwTq0QPqRh7dF_ErZPwdBcWmDZexdhnHfNbMe87KzrlhKzILGJyWwnoOVZFADHrULB593sTZv4pviuc4_GSJBNEYZFaoBFbaAyzIAR_brAIG0FjFUyTaFEd6X49hs6tGXw1M68wbS7zG1UTZMTMyImiOl--QW5zYefrWA__43Eyl5qBju1Bp3PF-3ZOr0J7mDZOgXAA50B4ywzZYXZWgVsQY_tioXeQdbFrgRmW4WOnExXPA3mswHhANRG_vne78_Eo4zwOEjKYPyiYJ-GVgKnRrfnQlkzwqHe2zbFrfj7ins24lSnYA0eptZdioM5YURQ6lraG0Wq_SjofqR8QrcodHVbounsdJjfvpNkINJNguyac_M1qWS0xJYuo8VXRCFz2bmQqSz3UwPbz8VBC9WJ7QogUEdYYWB8tL9a1Fe2SgcvpMD21Z4CfePZ64E0lTYJ79ofE-QBh8noR0JbakmIocvyFEUZxVudPpLE480PU685b0xhosrezHmpnldh_kK8VxfXoopGZ60p_Bc1Y3xBxw40zk8lFExkJVAXf82Dpspegn0Bk0cGJ98DUlkAQhppCurMN_4grWl43MPEndIDqlRQz02ALGxkBPImKhb53menktKzcOw3LJtvSdDdCa1sUoNeZRPiBPYGh-OCsAg3-vDQ6pPox2MGgodnnQ4bT_LIW9HK-kmLMlKoApaLpYkimtw9Kv2TLfr6_WaVakX8cDgDUPT6OJrxcwuCu74IUymTdiwvgZjKT_gEGHPooDT9BghfndJidi5gixCBXcuZsREfyog4I__75-Y5YV31hZrRrjRt2bIacakQs9c2UFy6DN__NZd3SU3J4dUPBimIk0GOByMzDVbdPcVYk38TThI2ReE3Rb2DRrR-PQlfkAq_KpNGIqW9VY3yRhGW0gCjBOCvu3MTxckpL9No7GjdhVi2TNeZWCsNzyHu5c3kNU3u7WY80jT7R9mUMiaQY2RF4Q4bSSg51FCbh6kb98XYifYhr9m5o4KMQIVustKwR3vhdObMGNVh9jeFop5s2QTLmZ5voA5-nGfpIPDksU6cSI8rJTHmkTeTW2-vrI19sFoXoIlnWe1I3Zvw8JmR8H-PXsqnPBR1a0ezZv8xmp4msR1EekdBckG3mHwDoMLcJOA6yOhC7tgp0eigzQI5_3FdUIjSeDsCSxM8zBMe43FZ3rjMd1XX5I-pIO6C1IciFXAdzg_2DdpYlEAev2QbwfBfX_sxJl_LWqZqrjAxQC6njtZl8hisnIV4pu4UTlJkLNHf-RV2vQFqMnYu7jwXMbgNyz6NPaYlGzVbgjoAbddI6g-eyfixNwDq5Ve5_eqdBozo7EkUiSoLOW9UUNoLTq2Wa345TAsFYSQ6Y0OVBxP718YyJL4Sri729nke5nfaQctBy55GDijZ4BH9JYBgib7i-VDB44RrLqjSBCznBNcaN3EDtbHaMoq7_JW74FIzlwqhp0vqgX69hprmRbFZ0Sd4uJq5SCCEsnwwUh0fq6hds5duQFGVHAlMHwkIcDFbIlSKTat5A23QBzdX6sr_vZVS7qy7kJAZMYUu-68-jMJyBH48gNhVupqnmlvkkl32kITnA_CaE8ZL5tKDdzSBGryAayF-jUhgv4LEoiEn65Evfj-cKTgRxKYUappibE8mZHdpcRGB9ooAcBVwNYA84E408yrz4b-nU6RI4DEAhRj5G27p0EkO6CkX3vD0YY7KOXOePz032eUZMMpV6N1Vw7Fb5GiQ4gw4DnmKzSZEzkrVTVbCbMO8M4ODxUV_wSWFP1qjHfvPLHnM4LxqbhR_juis2FHN8I4Cb6UH9PQvYVXNughh21FeW2ZK4Ym5ZIgmm1mi8akb4BzlWiHNwL7p892Kz2p10NSIKusHUhTveYIAlQscU_mEZUplf6jT90QvkbVGHpTToL9eRm3h3koRmMD4jNIZvJcKyWBoErOdvd1bujmoWej2Df630Swa3jwScihbCn69zF2Dw12IpEItJKxKXwu8990X0U4XEcgxz89vcSXl4hC7q60JFInXlUCKZ9-HkHNfzaHctJEYl5RgsXs8kQrODemcXBeYdThWutoDs8eJHQFnr2PBqhcrnAqgxX3oXWQZ8tjJrBK25UZgd8rbTJi8JfUYoFQ9Vz6DcDxTcAhb4HmZp_Ac_T02zbyOuHiKVDXobHPpnfTtIFvSx4Sh59U96O0Kto3fKQmVmW5DP0lMvgGaNhwmsf8pBeOEyh5sM9Ii4YUNBt67RH4ZXskBREVqEuXfrZHZiY__zeIbtmRGQ-Jbqd-YAhuXY_ssWHncCMRXZUUr-9xpfYDzcrxPyPkF41HaW_IYyTPAGELb5kdzmo9egPuxDSzRUdMFFnXWSL4NaGNzbtpaop7jDfvvHiLCa8v30lXt_EKMs3OGOmpM9xgOdbdn0xjE-iwQzj1Z8dXi2X2h35P7EkI7OgAi49eBZK_eDpFgHmDDtiUeiOZ3numQtH5dzkdrzYLwOr4dqKS2Nll8beTgSkcMKC1S02c_qg9WnSHnhaiWPEcgUuc3wq7u1bzhypBYrhJ91HGt0z-rvOsqbNG3hB6h1__pVNdNPoeszokCRj_4UYmiLSS7dfxvGpSUebG3hjN3HAAa1MseeYMZi23heYiLkw_EJH57RowYgCClZwayHpTvbtV9XkPewzX6Qx-2X-6roDG2LFp68BVq2OT03rUDtgiz5aMPBS4-wZAyAGD26oD1p1Cy7yMQCvF15JvHgba0s41LE_SSVHPFRZWTKJBGA6VsdZqBlLBjl5JW4ZCo0hZ5RB-PVOlloLSBjSLwnYkD7-WbQwRVAW4RUZEWD4owH22heDUu9tj_hiDKIUgLdsk9HTfO-CdwyLSHhlklf81gXtIzvv5uvb9Sh_qTZLymKeL5xdV3H8ZD5eEPxhXNihIQAv7zNzUE0QxFpBDcPJvVOLKoYBUD97nzJqXDlM3fGHwyei84PaGkyvMekM5YA=\u0026event=12"],
+                        "app_name": "疯读小说",
+                        "app_package": "com.cootek.crazyreader",
+                        "app_comment_num": 0,
+                        "app_score": 0,
+                        "app_md5": "",
+                        "app_size": 0,
+                        "app_logo": "http://sf6-be-pack.pglstatp-toutiao.com/obj/ad-app-package/4d7a09720f49b0b2997e2efae8d0ee66",
+                        "is_mtv_api_callback": 0,
+                        "coin": 0,
+                        "idea_id": 1681149619210328,
+                        "idea_id_str": "1681144893499431",
+                        "title_sign": "a563211adc322e570c2fb291a4a28f97",
+                        "material_sign": ["1f415c7310690951773d0e89df1d7282"],
+                        "btn_text": "立即下载",
+                        "download_begin_monitor": ["https://www.pangolin-dsp-toutiao.com/api/common/ads/event?extra=SRi3XZ2UGPNEW-uqOcN9qUX4KLrYgRbHCoZchH-PYd20iE0Riw9l0ipUl6yNtyHZZGow-4_WM5o-qUaSXHVSiJwXzOOZTYK16fOMgIcO61GQnUyTuYuxxz4D_hasPS4lCJP06hquuFOP0WmQdWFky-IhbvZPE8HcnY1N-A9iZrmFHBxsDl2gc7sclwTq0QPqRh7dF_ErZPwdBcWmDZexdhnHfNbMe87KzrlhKzILGJyWwnoOVZFADHrULB593sTZv4pviuc4_GSJBNEYZFaoBFbaAyzIAR_brAIG0FjFUyTaFEd6X49hs6tGXw1M68wbS7zG1UTZMTMyImiOl--QW5zYefrWA__43Eyl5qBju1Bp3PF-3ZOr0J7mDZOgXAA50B4ywzZYXZWgVsQY_tioXeQdbFrgRmW4WOnExXPA3mswHhANRG_vne78_Eo4zwOEjKYPyiYJ-GVgKnRrfnQlkzwqHe2zbFrfj7ins24lSnYA0eptZdioM5YURQ6lraG0Wq_SjofqR8QrcodHVbounsdJjfvpNkINJNguyac_M1qWS0xJYuo8VXRCFz2bmQqSz3UwPbz8VBC9WJ7QogUEdYYWB8tL9a1Fe2SgcvpMD21Z4CfePZ64E0lTYJ79ofE-QBh8noR0JbakmIocvyFEUZxVudPpLE480PU685b0xhosrezHmpnldh_kK8VxfXoopGZ60p_Bc1Y3xBxw40zk8lFExkJVAXf82Dpspegn0Bk0cGJ98DUlkAQhppCurMN_4grWl43MPEndIDqlRQz02ALGxkBPImKhb53menktKzcOw3LJtvSdDdCa1sUoNeZRPiBPYGh-OCsAg3-vDQ6pPox2MGgodnnQ4bT_LIW9HK-kmLMlKoApaLpYkimtw9Kv2TLfr6_WaVakX8cDgDUPT6OJrxcwuCu74IUymTdiwvgZjKT_gEGHPooDT9BghfndJidi5gixCBXcuZsREfyog4I__75-Y5YV31hZrRrjRt2bIacakQs9c2UFy6DN__NZd3SU3J4dUPBimIk0GOByMzDVbdPcVYk38TThI2ReE3Rb2DRrR-PQlfkAq_KpNGIqW9VY3yRhGW0gCjBOCvu3MTxckpL9No7GjdhVi2TNeZWCsNzyHu5c3kNU3u7WY80jT7R9mUMiaQY2RF4Q4bSSg51FCbh6kb98XYifYhr9m5o4KMQIVustKwR3vhdObMGNVh9jeFop5s2QTLmZ5voA5-nGfpIPDksU6cSI8rJTHmkTeTW2-vrI19sFoXoIlnWe1I3Zvw8JmR8H-PXsqnPBR1a0ezZv8xmp4msR1EekdBckG3mHwDoMLcJOA6yOhC7tgp0eigzQI5_3FdUIjSeDsCSxM8zBMe43FZ3rjMd1XX5I-pIO6C1IciFXAdzg_2DdpYlEAev2QbwfBfX_sxJl_LWqZqrjAxQC6njtZl8hisnIV4pu4UTlJkLNHf-RV2vQFqMnYu7jwXMbgNyz6NPaYlGzVbgjoAbddI6g-eyfixNwDq5Ve5_eqdBozo7EkUiSoLOW9UUNoLTq2Wa345TAsFYSQ6Y0OVBxP718YyJL4Sri729nke5nfaQctBy55GDijZ4BH9JYBgib7i-VDB44RrLqjSBCznBNcaN3EDtbHaMoq7_JW74FIzlwqhp0vqgX69hprmRbFZ0Sd4uJq5SCCEsnwwUh0fq6hds5duQFGVHAlMHwkIcDFbIlSKTat5A23QBzdX6sr_vZVS7qy7kJAZMYUu-68-jMJyBH48gNhVupqnmlvkkl32kITnA_CaE8ZL5tKDdzSBGryAayF-jUhgv4LEoiEn65Evfj-cKTgRxKYUappibE8mZHdpcRGB9ooAcBVwNYA84E408yrz4b-nU6RI4DEAhRj5G27p0EkO6CkX3vD0YY7KOXOePz032eUZMMpV6N1Vw7Fb5GiQ4gw4DnmKzSZEzkrVTVbCbMO8M4ODxUV_wSWFP1qjHfvPLHnM4LxqbhR_juis2FHN8I4Cb6UH9PQvYVXNughh21FeW2ZK4Ym5ZIgmm1mi8akb4BzlWiHNwL7p892Kz2p10NSIKusHUhTveYIAlQscU_mEZUplf6jT90QvkbVGHpTToL9eRm3h3koRmMD4jNIZvJcKyWBoErOdvd1bujmoWej2Df630Swa3jwScihbCn69zF2Dw12IpEItJKxKXwu8990X0U4XEcgxz89vcSXl4hC7q60JFInXlUCKZ9-HkHNfzaHctJEYl5RgsXs8kQrODemcXBeYdThWutoDs8eJHQFnr2PBqhcrnAqgxX3oXWQZ8tjJrBK25UZgd8rbTJi8JfUYoFQ9Vz6DcDxTcAhb4HmZp_Ac_T02zbyOuHiKVDXobHPpnfTtIFvSx4Sh59U96O0Kto3fKQmVmW5DP0lMvgGaNhwmsf8pBeOEyh5sM9Ii4YUNBt67RH4ZXskBREVqEuXfrZHZiY__zeIbtmRGQ-Jbqd-YAhuXY_ssWHncCMRXZUUr-9xpfYDzcrxPyPkF41HaW_IYyTPAGELb5kdzmo9egPuxDSzRUdMFFnXWSL4NaGNzbtpaop7jDfvvHiLCa8v30lXt_EKMs3OGOmpM9xgOdbdn0xjE-iwQzj1Z8dXi2X2h35P7EkI7OgAi49eBZK_eDpFgHmDDtiUeiOZ3numQtH5dzkdrzYLwOr4dqKS2Nll8beTgSkcMKC1S02c_qg9WnSHnhaiWPEcgUuc3wq7u1bzhypBYrhJ91HGt0z-rvOsqbNG3hB6h1__pVNdNPoeszokCRj_4UYmiLSS7dfxvGpSUebG3hjN3HAAa1MseeYMZi23heYiLkw_EJH57RowYgCClZwayHpTvbtV9XkPewzX6Qx-2X-6roDG2LFp68BVq2OT03rUDtgiz5aMPBS4-wZAyAGD26oD1p1Cy7yMQCvF15JvHgba0s41LE_SSVHPFRZWTKJBGA6VsdZqBlLBjl5JW4ZCo0hZ5RB-PVOlloLSBjSLwnYkD7-WbQwRVAW4RUZEWD4owH22heDUu9tj_hiDKIUgLdsk9HTfO-CdwyLSHhlklf81gXtIzvv5uvb9Sh_qTZLymKeL5xdV3H8ZD5eEPxhXNihIQAv7zNzUE0QxFpBDcPJvVOLKoYBUD97nzJqXDlM3fGHwyei84PaGkyvMekM5YA=\u0026event=17"],
+                        "download_end_monitor": ["https://www.pangolin-dsp-toutiao.com/api/common/ads/event?extra=SRi3XZ2UGPNEW-uqOcN9qUX4KLrYgRbHCoZchH-PYd20iE0Riw9l0ipUl6yNtyHZZGow-4_WM5o-qUaSXHVSiJwXzOOZTYK16fOMgIcO61GQnUyTuYuxxz4D_hasPS4lCJP06hquuFOP0WmQdWFky-IhbvZPE8HcnY1N-A9iZrmFHBxsDl2gc7sclwTq0QPqRh7dF_ErZPwdBcWmDZexdhnHfNbMe87KzrlhKzILGJyWwnoOVZFADHrULB593sTZv4pviuc4_GSJBNEYZFaoBFbaAyzIAR_brAIG0FjFUyTaFEd6X49hs6tGXw1M68wbS7zG1UTZMTMyImiOl--QW5zYefrWA__43Eyl5qBju1Bp3PF-3ZOr0J7mDZOgXAA50B4ywzZYXZWgVsQY_tioXeQdbFrgRmW4WOnExXPA3mswHhANRG_vne78_Eo4zwOEjKYPyiYJ-GVgKnRrfnQlkzwqHe2zbFrfj7ins24lSnYA0eptZdioM5YURQ6lraG0Wq_SjofqR8QrcodHVbounsdJjfvpNkINJNguyac_M1qWS0xJYuo8VXRCFz2bmQqSz3UwPbz8VBC9WJ7QogUEdYYWB8tL9a1Fe2SgcvpMD21Z4CfePZ64E0lTYJ79ofE-QBh8noR0JbakmIocvyFEUZxVudPpLE480PU685b0xhosrezHmpnldh_kK8VxfXoopGZ60p_Bc1Y3xBxw40zk8lFExkJVAXf82Dpspegn0Bk0cGJ98DUlkAQhppCurMN_4grWl43MPEndIDqlRQz02ALGxkBPImKhb53menktKzcOw3LJtvSdDdCa1sUoNeZRPiBPYGh-OCsAg3-vDQ6pPox2MGgodnnQ4bT_LIW9HK-kmLMlKoApaLpYkimtw9Kv2TLfr6_WaVakX8cDgDUPT6OJrxcwuCu74IUymTdiwvgZjKT_gEGHPooDT9BghfndJidi5gixCBXcuZsREfyog4I__75-Y5YV31hZrRrjRt2bIacakQs9c2UFy6DN__NZd3SU3J4dUPBimIk0GOByMzDVbdPcVYk38TThI2ReE3Rb2DRrR-PQlfkAq_KpNGIqW9VY3yRhGW0gCjBOCvu3MTxckpL9No7GjdhVi2TNeZWCsNzyHu5c3kNU3u7WY80jT7R9mUMiaQY2RF4Q4bSSg51FCbh6kb98XYifYhr9m5o4KMQIVustKwR3vhdObMGNVh9jeFop5s2QTLmZ5voA5-nGfpIPDksU6cSI8rJTHmkTeTW2-vrI19sFoXoIlnWe1I3Zvw8JmR8H-PXsqnPBR1a0ezZv8xmp4msR1EekdBckG3mHwDoMLcJOA6yOhC7tgp0eigzQI5_3FdUIjSeDsCSxM8zBMe43FZ3rjMd1XX5I-pIO6C1IciFXAdzg_2DdpYlEAev2QbwfBfX_sxJl_LWqZqrjAxQC6njtZl8hisnIV4pu4UTlJkLNHf-RV2vQFqMnYu7jwXMbgNyz6NPaYlGzVbgjoAbddI6g-eyfixNwDq5Ve5_eqdBozo7EkUiSoLOW9UUNoLTq2Wa345TAsFYSQ6Y0OVBxP718YyJL4Sri729nke5nfaQctBy55GDijZ4BH9JYBgib7i-VDB44RrLqjSBCznBNcaN3EDtbHaMoq7_JW74FIzlwqhp0vqgX69hprmRbFZ0Sd4uJq5SCCEsnwwUh0fq6hds5duQFGVHAlMHwkIcDFbIlSKTat5A23QBzdX6sr_vZVS7qy7kJAZMYUu-68-jMJyBH48gNhVupqnmlvkkl32kITnA_CaE8ZL5tKDdzSBGryAayF-jUhgv4LEoiEn65Evfj-cKTgRxKYUappibE8mZHdpcRGB9ooAcBVwNYA84E408yrz4b-nU6RI4DEAhRj5G27p0EkO6CkX3vD0YY7KOXOePz032eUZMMpV6N1Vw7Fb5GiQ4gw4DnmKzSZEzkrVTVbCbMO8M4ODxUV_wSWFP1qjHfvPLHnM4LxqbhR_juis2FHN8I4Cb6UH9PQvYVXNughh21FeW2ZK4Ym5ZIgmm1mi8akb4BzlWiHNwL7p892Kz2p10NSIKusHUhTveYIAlQscU_mEZUplf6jT90QvkbVGHpTToL9eRm3h3koRmMD4jNIZvJcKyWBoErOdvd1bujmoWej2Df630Swa3jwScihbCn69zF2Dw12IpEItJKxKXwu8990X0U4XEcgxz89vcSXl4hC7q60JFInXlUCKZ9-HkHNfzaHctJEYl5RgsXs8kQrODemcXBeYdThWutoDs8eJHQFnr2PBqhcrnAqgxX3oXWQZ8tjJrBK25UZgd8rbTJi8JfUYoFQ9Vz6DcDxTcAhb4HmZp_Ac_T02zbyOuHiKVDXobHPpnfTtIFvSx4Sh59U96O0Kto3fKQmVmW5DP0lMvgGaNhwmsf8pBeOEyh5sM9Ii4YUNBt67RH4ZXskBREVqEuXfrZHZiY__zeIbtmRGQ-Jbqd-YAhuXY_ssWHncCMRXZUUr-9xpfYDzcrxPyPkF41HaW_IYyTPAGELb5kdzmo9egPuxDSzRUdMFFnXWSL4NaGNzbtpaop7jDfvvHiLCa8v30lXt_EKMs3OGOmpM9xgOdbdn0xjE-iwQzj1Z8dXi2X2h35P7EkI7OgAi49eBZK_eDpFgHmDDtiUeiOZ3numQtH5dzkdrzYLwOr4dqKS2Nll8beTgSkcMKC1S02c_qg9WnSHnhaiWPEcgUuc3wq7u1bzhypBYrhJ91HGt0z-rvOsqbNG3hB6h1__pVNdNPoeszokCRj_4UYmiLSS7dfxvGpSUebG3hjN3HAAa1MseeYMZi23heYiLkw_EJH57RowYgCClZwayHpTvbtV9XkPewzX6Qx-2X-6roDG2LFp68BVq2OT03rUDtgiz5aMPBS4-wZAyAGD26oD1p1Cy7yMQCvF15JvHgba0s41LE_SSVHPFRZWTKJBGA6VsdZqBlLBjl5JW4ZCo0hZ5RB-PVOlloLSBjSLwnYkD7-WbQwRVAW4RUZEWD4owH22heDUu9tj_hiDKIUgLdsk9HTfO-CdwyLSHhlklf81gXtIzvv5uvb9Sh_qTZLymKeL5xdV3H8ZD5eEPxhXNihIQAv7zNzUE0QxFpBDcPJvVOLKoYBUD97nzJqXDlM3fGHwyei84PaGkyvMekM5YA=\u0026event=18"],
+                        "installation_end_monitor": ["https://www.pangolin-dsp-toutiao.com/api/common/ads/event?extra=SRi3XZ2UGPNEW-uqOcN9qUX4KLrYgRbHCoZchH-PYd20iE0Riw9l0ipUl6yNtyHZZGow-4_WM5o-qUaSXHVSiJwXzOOZTYK16fOMgIcO61GQnUyTuYuxxz4D_hasPS4lCJP06hquuFOP0WmQdWFky-IhbvZPE8HcnY1N-A9iZrmFHBxsDl2gc7sclwTq0QPqRh7dF_ErZPwdBcWmDZexdhnHfNbMe87KzrlhKzILGJyWwnoOVZFADHrULB593sTZv4pviuc4_GSJBNEYZFaoBFbaAyzIAR_brAIG0FjFUyTaFEd6X49hs6tGXw1M68wbS7zG1UTZMTMyImiOl--QW5zYefrWA__43Eyl5qBju1Bp3PF-3ZOr0J7mDZOgXAA50B4ywzZYXZWgVsQY_tioXeQdbFrgRmW4WOnExXPA3mswHhANRG_vne78_Eo4zwOEjKYPyiYJ-GVgKnRrfnQlkzwqHe2zbFrfj7ins24lSnYA0eptZdioM5YURQ6lraG0Wq_SjofqR8QrcodHVbounsdJjfvpNkINJNguyac_M1qWS0xJYuo8VXRCFz2bmQqSz3UwPbz8VBC9WJ7QogUEdYYWB8tL9a1Fe2SgcvpMD21Z4CfePZ64E0lTYJ79ofE-QBh8noR0JbakmIocvyFEUZxVudPpLE480PU685b0xhosrezHmpnldh_kK8VxfXoopGZ60p_Bc1Y3xBxw40zk8lFExkJVAXf82Dpspegn0Bk0cGJ98DUlkAQhppCurMN_4grWl43MPEndIDqlRQz02ALGxkBPImKhb53menktKzcOw3LJtvSdDdCa1sUoNeZRPiBPYGh-OCsAg3-vDQ6pPox2MGgodnnQ4bT_LIW9HK-kmLMlKoApaLpYkimtw9Kv2TLfr6_WaVakX8cDgDUPT6OJrxcwuCu74IUymTdiwvgZjKT_gEGHPooDT9BghfndJidi5gixCBXcuZsREfyog4I__75-Y5YV31hZrRrjRt2bIacakQs9c2UFy6DN__NZd3SU3J4dUPBimIk0GOByMzDVbdPcVYk38TThI2ReE3Rb2DRrR-PQlfkAq_KpNGIqW9VY3yRhGW0gCjBOCvu3MTxckpL9No7GjdhVi2TNeZWCsNzyHu5c3kNU3u7WY80jT7R9mUMiaQY2RF4Q4bSSg51FCbh6kb98XYifYhr9m5o4KMQIVustKwR3vhdObMGNVh9jeFop5s2QTLmZ5voA5-nGfpIPDksU6cSI8rJTHmkTeTW2-vrI19sFoXoIlnWe1I3Zvw8JmR8H-PXsqnPBR1a0ezZv8xmp4msR1EekdBckG3mHwDoMLcJOA6yOhC7tgp0eigzQI5_3FdUIjSeDsCSxM8zBMe43FZ3rjMd1XX5I-pIO6C1IciFXAdzg_2DdpYlEAev2QbwfBfX_sxJl_LWqZqrjAxQC6njtZl8hisnIV4pu4UTlJkLNHf-RV2vQFqMnYu7jwXMbgNyz6NPaYlGzVbgjoAbddI6g-eyfixNwDq5Ve5_eqdBozo7EkUiSoLOW9UUNoLTq2Wa345TAsFYSQ6Y0OVBxP718YyJL4Sri729nke5nfaQctBy55GDijZ4BH9JYBgib7i-VDB44RrLqjSBCznBNcaN3EDtbHaMoq7_JW74FIzlwqhp0vqgX69hprmRbFZ0Sd4uJq5SCCEsnwwUh0fq6hds5duQFGVHAlMHwkIcDFbIlSKTat5A23QBzdX6sr_vZVS7qy7kJAZMYUu-68-jMJyBH48gNhVupqnmlvkkl32kITnA_CaE8ZL5tKDdzSBGryAayF-jUhgv4LEoiEn65Evfj-cKTgRxKYUappibE8mZHdpcRGB9ooAcBVwNYA84E408yrz4b-nU6RI4DEAhRj5G27p0EkO6CkX3vD0YY7KOXOePz032eUZMMpV6N1Vw7Fb5GiQ4gw4DnmKzSZEzkrVTVbCbMO8M4ODxUV_wSWFP1qjHfvPLHnM4LxqbhR_juis2FHN8I4Cb6UH9PQvYVXNughh21FeW2ZK4Ym5ZIgmm1mi8akb4BzlWiHNwL7p892Kz2p10NSIKusHUhTveYIAlQscU_mEZUplf6jT90QvkbVGHpTToL9eRm3h3koRmMD4jNIZvJcKyWBoErOdvd1bujmoWej2Df630Swa3jwScihbCn69zF2Dw12IpEItJKxKXwu8990X0U4XEcgxz89vcSXl4hC7q60JFInXlUCKZ9-HkHNfzaHctJEYl5RgsXs8kQrODemcXBeYdThWutoDs8eJHQFnr2PBqhcrnAqgxX3oXWQZ8tjJrBK25UZgd8rbTJi8JfUYoFQ9Vz6DcDxTcAhb4HmZp_Ac_T02zbyOuHiKVDXobHPpnfTtIFvSx4Sh59U96O0Kto3fKQmVmW5DP0lMvgGaNhwmsf8pBeOEyh5sM9Ii4YUNBt67RH4ZXskBREVqEuXfrZHZiY__zeIbtmRGQ-Jbqd-YAhuXY_ssWHncCMRXZUUr-9xpfYDzcrxPyPkF41HaW_IYyTPAGELb5kdzmo9egPuxDSzRUdMFFnXWSL4NaGNzbtpaop7jDfvvHiLCa8v30lXt_EKMs3OGOmpM9xgOdbdn0xjE-iwQzj1Z8dXi2X2h35P7EkI7OgAi49eBZK_eDpFgHmDDtiUeiOZ3numQtH5dzkdrzYLwOr4dqKS2Nll8beTgSkcMKC1S02c_qg9WnSHnhaiWPEcgUuc3wq7u1bzhypBYrhJ91HGt0z-rvOsqbNG3hB6h1__pVNdNPoeszokCRj_4UYmiLSS7dfxvGpSUebG3hjN3HAAa1MseeYMZi23heYiLkw_EJH57RowYgCClZwayHpTvbtV9XkPewzX6Qx-2X-6roDG2LFp68BVq2OT03rUDtgiz5aMPBS4-wZAyAGD26oD1p1Cy7yMQCvF15JvHgba0s41LE_SSVHPFRZWTKJBGA6VsdZqBlLBjl5JW4ZCo0hZ5RB-PVOlloLSBjSLwnYkD7-WbQwRVAW4RUZEWD4owH22heDUu9tj_hiDKIUgLdsk9HTfO-CdwyLSHhlklf81gXtIzvv5uvb9Sh_qTZLymKeL5xdV3H8ZD5eEPxhXNihIQAv7zNzUE0QxFpBDcPJvVOLKoYBUD97nzJqXDlM3fGHwyei84PaGkyvMekM5YA=\u0026event=19"],
+                        "source_mark": "穿山甲",
+                        "put_type": 0,
+                        "video_logo": "http://sf6-be-pack.pglstatp-toutiao.com/obj/ad-app-package/4d7a09720f49b0b2997e2efae8d0ee66",
+                        "card_url": "",
+                        "card_width": 0,
+                        "card_height": 0,
+                        "card_ext_urls": null,
+                        "non_standard_auto_coin": 0,
+                        "playable": {},
+                        "new_coin": {
+                            "click_coin": {},
+                            "download_coin": {},
+                            "la_huo_ju_he_coin": {},
+                            "incite_game_coin": {},
+                            "app_guess_right_coin": {},
+                            "app_guess_wrong_coin": {},
+                            "nonstand_coin": {},
+                            "first_ins_video_coin": {}
+                        },
+                        "dsp_media_id": "80000001",
+                        "ad_src": 62
+                    },
+                    "bottoming": {
+                        "union": "",
+                        "appid": "",
+                        "adslotid": "",
+                        "link": "",
+                        "native_ad_type": 0,
+                        "imp": null,
+                        "clk": null
+                    },
+                    "sdk_pk_info": {
+                        "dsp_cpm": 641
+                    },
+                    "media_appsid": "80000001",
+                    "adslot_type": 3
+                }],
+                "search_id": "Dzqc6q0wG3CoNy5mBcAijiUqreFKgelTqCSiVk1O",
+                "ext": {
+                    "province": "上海"
+                },
+                "sdk_info": {}
+            }
+            """
+            try:
+                dict_content = json.loads(flow.response.content.decode())
+
+                for dict_ad in dict_content['ads']:
+                    material_type = dict_ad['material_type']
+
+                    # material_type == 1 表示： 视频广告？
+                    if material_type == 1:
+                        dict_native_material = dict_ad['native_material']
+                        interaction_type = dict_native_material['interaction_type']
+                        # interaction_type == 2表示： 应用下载推广?
+
+                        ad_info = AdInfo()
+                        ad_info.ad_evidence.ad_pic_url_list = [dict_native_material['logo_url']]
+                        ad_info.ad_evidence.title = dict_native_material['title']
+                        ad_info.ad_evidence.description = '{} - {}(包名： {})'.format(dict_native_material['desc'],
+                                                                                   dict_native_material['app_name'],
+                                                                                   dict_native_material[
+                                                                                       'app_package'])
+                        ad_info.ad_evidence.ad_url = dict_native_material['c_url']
+                        ad_info.optional_ad_evidence.cooperation_name = dict_native_material['source_mark']
+
+                        ad_evidence_save_path = os.path.join(self.get_output_path(), ad_info.uuid)
+                        FilesystemUtil.create_directories(ad_evidence_save_path)
+
+                        ad_info.ad_evidence.ad_screenshot_path = os.path.join(ad_evidence_save_path,
+                                                                              'ad_lottery_0.png')
+
+                        ad_info.ad_evidence.ad_flow_path = os.path.join(ad_evidence_save_path, 'ad_lottery.mitm')
+                        OutputUtil.dump_flow(ad_info.ad_evidence.ad_flow_path, flow)
+
+                        self.thread_screen_cap(ad_info.ad_evidence.ad_screenshot_path)
+                        self.persist_ad_info(ad_info)
+                    else:
+                        warn = '"趣头条" 天降红包，新的奖品类型： ' + url
+                        Log.error(warn)
+                        self.persist_err_content(
+                            warn + '\n\nresponse:\n' + json.dumps(dict_content, indent=4, ensure_ascii=False),
+                            self.get_err_save_path('qutoutiao_err_response.txt'))
+                        return False
+                Log.info('"趣头条" 天降红包，广告命中:{}', url)
+                return True
+            except Exception as e:
+                warn = '"趣头条" 天降红包，解析出错： ' + url
+                Log.error(warn)
+                self.persist_err_content(
+                    warn + '\n\nerror:\n' + str(e) + '\n\nresponse:\n' + str(flow.response.content),
+                    self.get_err_save_path('qutoutiao_err_response.txt'))
+                return False
+
+        elif re.fullmatch("https://api\.aiclk\.com/v(\d)/json", url) is not None:
+            warn = '"趣头条aiclk"发现新版的广告内容，需要适配： ' + url
+            Log.error(warn)
+            self.persist_err_content(warn + '\n\nresponse:\n' + str(flow.response.content),
+                                     self.get_err_save_path('qutoutiao_err_response.txt'))
+            return False
+
+    def __get_self_increasing_screenshot_path(self, p: str):
+        while FilesystemUtil.is_file_exist(p):
+            Log.info('截图已经存在:{}', p)
+            p = self.self_increasing_screen_cap_name(p)
+            Log.info('新截图名称:{}', p)
+        return p
+
+    @staticmethod
+    def self_increasing_screen_cap_name(file_name: str) -> str:
+        base_name, ext = os.path.splitext(file_name)
+        components = base_name.split('_')
+        series = int(components[-1]) + 1
+        new_file_name = ''
+        for i in range(len(components) - 1):
+            if i != 0:
+                new_file_name += '_'
+            new_file_name += components[i]
+        return new_file_name + '_' + str(series) + ext

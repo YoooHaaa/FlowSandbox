@@ -1,0 +1,11 @@
+@startwbs arch
+scale 2
+* tweezer
+** config
+** core
+** model
+** plugin
+** resource
+** script
+** util
+@endwbs

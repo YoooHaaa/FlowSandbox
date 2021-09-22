@@ -1,0 +1,9 @@
+@startuml apk_info_class
+scale 2
+class ApkInfo {
+    String pkg_name
+    String app_name
+    String version
+    ...
+}
+@enduml

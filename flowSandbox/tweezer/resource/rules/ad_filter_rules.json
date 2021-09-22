@@ -1,0 +1,21 @@
+{
+  "match_url": true,
+  "category": {
+    "general": {
+      "enabled": true,
+      "rules": {
+        ".*[/_&]ad(vertise){0,1}s{0,1}[/_&].*": true,
+        ".*[/_&]ad(vertise){0,1}s{0,1}": true
+      }
+    },
+    "interactive": {
+      "enabled": true,
+      "rules": {
+        ".*[/_&]lottery[/_&].*": true,
+        ".*[/_&]lottery": true,
+        ".*[/_&]activity[/_&].*": true,
+        ".*[/_&]activity": true
+      }
+    }
+  }
+}

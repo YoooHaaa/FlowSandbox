@@ -1,0 +1,23 @@
+@startuml plugin_class
+scale 2
+class BasePlugin {
+    Runtime runtime
+    {abstract} void register_event()
+    {abstract} void run()
+}
+
+class BaseHotkeyPlugin{
+    {static} void is_shortcut_valid()
+}
+
+class TuiaAdCap{
+}
+
+class HotkeyScreenCap{
+}
+BasePlugin <|-- BaseHotkeyPlugin
+BaseHotkeyPlugin <|-- HotkeyScreenCap
+BasePlugin <|-- TuiaAdCap
+
+
+@enduml

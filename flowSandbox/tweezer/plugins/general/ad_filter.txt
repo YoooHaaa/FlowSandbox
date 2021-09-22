@@ -1,0 +1,150 @@
+# !/usr/bin/env python3
+# -*-coding:utf-8 -*-
+
+"""
+# File       : ad_filter.py
+# Time       ：2020/8/27 10:39
+# Author     ：Rodney Cheung
+"""
+import os
+import re
+import threading
+import json
+import time
+from typing import List, Set, Dict
+
+from mitmproxy import http
+
+from tweezer.config.config import Configor
+from tweezer.core.runtime_event import RuntimeEvent, RuntimeEventType
+from tweezer.plugins.base.base_plugin import BasePlugin
+from tweezer.resource import constant
+from tweezer.resource.resource import CwdResource
+from wisbec.database.db import Sqlite3DataBase
+from wisbec.filesystem.filesystem import FilesystemUtil
+from wisbec.logging.log import Log
+
+
+class AdFilterRule:
+    def __init__(self, category: str, rule: re.Pattern):
+        self.m_category = category
+        self.m_rule = rule
+
+
+class AdFilterMatchResult:
+    def __init__(self, categories: set, top_app: str, url: str):
+        self.m_categories: set = categories
+        self.m_top_app = top_app
+        self.m_url = url
+
+
+class AdFilter(BasePlugin):
+    def register_event(self):
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.REQUEST, callback=self.__cb_request)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.RESPONSE, callback=self.__cb_response)
+        RuntimeEvent().reg_event(event_type=RuntimeEventType.SWITCHED_APP, callback=self.__cb_switch_app)
+
+    def run(self):
+        self.register_event()
+        threading.Thread(target=self.__save).start()
+
+    def __init__(self):
+        BasePlugin.__init__(self)
+        # load rules
+        self.m_rules: List[AdFilterRule] = []
+        self.m_lock = threading.Lock()
+        self.m_hit_urls_cache: List[AdFilterMatchResult] = list()
+        self.m_db_obj = None
+        self.m_top_app: str = ''
+        self.m_conf = Configor.get_ad_filter_rules_conf()
+        self.m_flow_category_map: Dict[str, AdFilterMatchResult] = dict()
+        self.__init()
+
+    def __init(self):
+        self.__read_rules()
+        self.__init_database()
+
+    def __init_database(self):
+        output_dir = self.__get_output_path()
+        self.m_db_obj = Sqlite3DataBase(
+            os.path.join(output_dir, 'result.db'))
+        self.m_db_obj.connect()
+        c = self.m_db_obj.connection.cursor()
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS ad_url
+       (ID INTEGER PRIMARY KEY  AUTOINCREMENT,
+       url           TEXT,
+       category      TEXT,
+       package_name  TEXT);
+        """)
+
+    def __read_rules(self):
+        for category, category_conf in self.m_conf['category'].items():
+            if not category_conf['enabled']:
+                continue
+            for rule, is_open in category_conf['rules'].items():
+                if not is_open:
+                    continue
+                self.m_rules.append(AdFilterRule(category, re.compile(rule)))
+
+    def __match_request(self, flow: http.HTTPFlow) -> Set[str]:
+        categories = set()
+        if self.m_conf['match_url']:
+            url_match_cate = self.__url_match(flow.request.url)
+            if url_match_cate is not None:
+                Log.info('疑似广告URL:{}', flow.request.url)
+                categories.add(url_match_cate)
+        return categories
+
+    def __cb_request(self, event_type, **kwargs):
+        flow: http.HTTPFlow = kwargs['flow']
+        cate = self.__match_request(flow)
+        self.m_flow_category_map[flow.id] = AdFilterMatchResult(cate, self.m_top_app, flow.request.url)
+
+    def __cb_response(self, event_type, **kwargs):
+        flow: http.HTTPFlow = kwargs['flow']
+        if flow.id not in self.m_flow_category_map:
+            return
+        ad_filter_match_res = self.m_flow_category_map[flow.id]
+        if len(ad_filter_match_res.m_categories) > 0:
+            with self.m_lock:
+                self.m_hit_urls_cache.append(ad_filter_match_res)
+                del self.m_flow_category_map[flow.id]
+
+    def __cb_switch_app(self, event_type, **kwargs):
+        self.m_top_app = kwargs['pkg']
+        self.__clear_cache()
+
+    def __url_match(self, url: str):
+        for rule in self.m_rules:
+            res = rule.m_rule.fullmatch(url)
+            if res is not None:
+                return rule.m_category
+        return None
+
+    def __clear_cache(self):
+        self.__save_hit_urls()
+
+    def __save_hit_urls(self):
+        with self.m_lock:
+            if len(self.m_hit_urls_cache) > 0:
+                c = self.m_db_obj.connection.cursor()
+                for ad_filter_match_res in self.m_hit_urls_cache:
+                    c.execute("""
+                    INSERT INTO ad_url (url,category,package_name) VALUES('{}','{}','{}')
+                    """.format(ad_filter_match_res.m_url,
+                               ','.join(category for category in ad_filter_match_res.m_categories),
+                               ad_filter_match_res.m_top_app))
+                self.m_db_obj.connection.commit()
+                self.m_hit_urls_cache.clear()
+
+    def __save(self):
+        while True:
+            time.sleep(3)
+            self.__save_hit_urls()
+
+    @staticmethod
+    def __get_output_path():
+        output_path = os.path.join(CwdResource.get_plugin_output_path(), constant.AD_FILTER_OUTPUT_DIR)
+        FilesystemUtil.create_directories(output_path)
+        return output_path

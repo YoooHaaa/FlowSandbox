@@ -1,0 +1,49 @@
+{
+  "category": {
+    "ad_platforms": {
+      "enabled": true,
+      "rules": {
+        "modads_baidu": {
+          "enabled": true,
+          "rules": {
+            "http://mobads.baidu.com/cpro/ui/mads.php*": true
+          }
+        },
+        "pangolin": {
+          "enabled": true,
+          "rules": {
+            "https://www.pangolin-dsp-toutiao.com/*": true
+          }
+        },
+        "qq": {
+          "enabled": true,
+          "rules": {
+            "https://mi.gdt.qq.com/gdt_mview.fcg*": true
+          }
+        },
+        "qutoutiao": {
+          "enabled": true,
+          "rules": {
+            "https://api.aiclk.com/v4/*": true,
+            "https://cdn.aiclk.com/nsdk/res/config*": true,
+            "http://cdn.aiclk.com/nsdk/res/imgstatic*": true,
+            "http://oss.cdn.aiclk.com/customer/*": true
+          }
+        },
+        "tuifish": {
+          "enabled": true,
+          "rules": {
+            "https://activity.tuifish.com/activity/redirect*": true,
+            "http://activity.tuifish.com/activity/redirect*": true
+          }
+        },
+        "weilitoutiao": {
+          "enabled": true,
+          "rules": {
+            "https://ads.weilitoutiao.net/kuaima_ads/api/ad/get/*": true
+          }
+        }
+      }
+    }
+  }
+}

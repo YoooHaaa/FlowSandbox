@@ -1,0 +1,71 @@
+{
+  "category": {
+    "腾讯网卡": {
+      "enabled": true,
+      "rules": [
+        [
+          "腾讯大王卡",
+          "送货",
+          "地址",
+          "姓名"
+        ]
+      ]
+    },
+    "茅台镇酒": {
+      "enabled": true,
+      "rules": [
+        [
+          "茅台镇",
+          "免费领取",
+          "收货人"
+        ],
+        [
+          "茅台镇1",
+          "收货人1"
+        ]
+      ]
+    },
+    "推啊": {
+      "enabled": true,
+      "rules": [
+        [
+          "tuia-activity-web"
+        ],
+        [
+          "yun.tuisnake.com"
+        ],
+        [
+          "@bundleinfo-吴赟夏"
+        ]
+      ]
+    },
+    "茶叶": {
+      "enabled": true,
+      "rules": [
+        [
+          "铁观音"
+        ]
+      ]
+    },
+    "贷款": {
+      "enabled": true,
+      "rules": [
+        [
+          "免息",
+          "放款"
+        ],
+        [
+          "贷款"
+        ]
+      ]
+    },
+    "博彩": {
+      "enabled": true,
+      "rules": [
+        [
+          "微信号"
+        ]
+      ]
+    }
+  }
+}

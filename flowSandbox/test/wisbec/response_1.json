@@ -1,0 +1,154 @@
+[
+  {
+    "type": 0,
+    "adStyle": 6,
+    "posId": 5165000023,
+    "adInfo": [
+      {
+        "adTrackInfo": [
+          {
+            "type": 1,
+            "url": [
+              "https://ad.ibestfanli.com/scenead_open_service/third/kuaiShou/callback?prdId=18121&sourceId=yhksx547&callbackUrl=http%3A%2F%2Fad.partner.gifshow.com%2Ftrack%2Factivate%3Fcallback%3D8aYnrDkSz2RLRlv0BF0tmYWUFfXBZQ0qfJqJw4o5Q0wKlwLYCVcVTWD6Em8RFO25IqEJxi7ix9thJtrPEgQMTwx3QRI2BKpzJ4YQSW1pNd6ehlDUAY2M5pNo-0cLmS8rSbzevL8KJ0w0PNjVSMrHoA1hukUc9Py-G7fM7Dkfy0g1m7hrUeVsOcRaIvR29MPp&cId=709111214&iMei=__IMEI2__&idFa=__IDFA2__&ts=__TS__&androidId=__ANDROIDID2__&campaignId=82598326&adId=22847234&adName=1659964%2D%E4%BA%91%E6%B5%B7%E6%98%9F%E7%A9%BA%E5%BF%AB%E6%89%8B%2D547%2D1027%2D%E9%80%9A%E6%8A%95&mac=__MAC__&ip=101.229.4.171&oaid=__OAID__"
+            ]
+          }
+        ],
+        "adConversionInfo": {
+          "h5Url": "https://static.yximgs.com/s1/htmls/feed-joint-landing-page/feed-joint-landing-page-ee708d0628.html?callback=8aYnrDkSz2RLRlv0BF0tmYWUFfXBZQ0qfJqJw4o5Q0wKlwLYCVcVTWD6Em8RFO25IqEJxi7ix9thJtrPEgQMTwx3QRI2BKpzJ4YQSW1pNd6ehlDUAY2M5pNo-0cLmS8rSbzevL8KJ0w0PNjVSMrHoA1hukUc9Py-G7fM7Dkfy0g1m7hrUeVsOcRaIvR29MPp",
+          "deeplinkUrl": "",
+          "appDownloadUrl": "https://down.xmiles.cn/down/18121/1659964",
+          "marketUrl": "",
+          "h5Type": 1
+        },
+        "adBaseInfo": {
+          "creativeId": 709111214,
+          "accountId": 8022871,
+          "adSourceType": 1,
+          "adDescription": "有人已经开始偷偷赚钱了,用充电得宝,平常充充电就能赚零花钱了",
+          "adSourceDescription": "广告",
+          "adOperationType": 1,
+          "adShowDuration": 66,
+          "appIconUrl": "http://static.yximgs.com/udata/pkg/d7fab15a737940d59d4ad1c642212531.jpg",
+          "appName": "充电得宝",
+          "appPackageName": "com.xmforemost.chargebao",
+          "appScore": 0,
+          "adActionDescription": "一键下载",
+          "showUrl": "https://open.e.kuaishou.com/rest/e/v2/open/log/show?pr=__PR__&prType=__PRTYPE__&type=__TYPE__&behavior=__BEHAVIOR__&ex=s4rmm_3&adLog=H4sIAAAAAAAAAF3Su-v1dgHHcZ4Hi2gLfaCL6CKdWgLNN_dkKJjbyeXk5HZyd9BcTnJyz0lOrpN_wYOLo86lVCc3t9apg6CLUB0EFyc3JxH8ufqZP7yn13d_-d6b3_zl5396_f0v3h0gy-lyrCrQsFQXF2ZlpjP6XmToOtjTrmGN-Swyi11FUsHLw4NUMk0BicaRBc-J1a6tG_PwnShJlI3KHhiEiYpTz0L_YJwzllxPRsfpz3TK51hKqMRsCbY07kWvZ2QHa5N_1VJuS7RU6yMWL5czB4uMQFghkykuKrHF8ajkYpumKeyCLmjqhoZimzg6OjBIZAypAE0PGy4wqn04ce8zUrl6PpCe83TvkRKXaCAPZ_Pp-gPTxkxhC9xxTGyuwdH9yMOnIasuBuLueEj0g6mmrulp70lfisuBBE9HBbIW06qAGLWkiY5M9AxRzvgsbUJ25-trC9xqH_1q1GyQk7bZupzKiEIoxAx3R1UTS9vgwKFbs4ijD5RNQO9jckisEovJVDHcs1sRQ9-Gq6OcrCqHFqOZdYljUv4lQYyx8hCS6gZwUrUEeryrsnK5leZ8UQ8cnAv9bvphgm03naeyUiEEdd2ONG4u0woL3CMnHnsACPMUVWFw6vjc2wbILwGWMwMulwlqJnbH8lR_bi3xUHcuy0fdx_zQOBvk8qiGfF8XliE1NhsnXxKmGeNFhlogQOOXFsdF9W5hi-8TYYiSWdr3OdOo4FRo0t1oA1nMEj4EmpPcQ1vA5gt6atyIbObrWa00sxZliXfLVHyIJ8LDBmjHQoMb8GIMLDuokf1WW6LZw8NyTqA7YxC75pR-jMJYeJkAKux8q8vbJkQEHzOd4CwOlXh0DNf2te31di6b8BKW1dIja-GdQDsGo7UIXlniBEQvGCD0wYs2UFQKrQQ-1qqEO2eOHFOsYTjxoIhE57Ql9UQGLskLwcEPYUaTjdKrYSnirZZV2XuBrOblTm3mlQifvkid6SjGNJarEiTscvcGOSMzHzhmrGyEE49tPJYysDMN873hmhaho5pEwG-TcyXxJTOFvuQjIfRjSILMPPSwu06zYkCfpGLlFSiTFhVXhb3G1iyW46rPzvhpVOR4viUyje6qsPguERyOg6eKfXIx20VDlW9Z4xxXDFpXjpMWDENW2UhTMFsgL8SbBaCwsvG5PdXICCmyXm3801mEYETY2TPZNRFHRvfmHmXOfDhlipbtKtdu-W5168DZQChqd6qeEehCTYlhVd8R-jrNhKUegL_MnGyZhQ1zoltA2xweA1pqkrLWMOUT5dX1ii2A7HJqiJWJh33shYlyXwy3-0ukHDIJptLjhOn70WWoMHv6clMs_hpJjFEQW1Y3wqHnHHK9PBWP4lO-5K9zdokOBSyXwDhWuyYIsZue8FZZjT1Droylh1PCiq63tGNIT4jIVMoN2dFDKRmJ3Z43NPoJSEw9g87LeQdcy3QYHrnlWhHjZxtpe3CG4tvZYo4gluLb09hCfqHTVaYFg-o3Z1ug-366Ze0h7TNXeLw0XTG5rg0rXukrk-aSOtNNQg_VIq7BwHKeXPo1e9gOFzWzbNpcbsoOzOpoVilKIxXjHbk8KfDpD1-BP_7h79-8fUX_4uu3__j2j778979-_9uv_vO3H0TvYwRFYDSgAYKQDAaSN3R8u6EMSFGciCkcRT5__bH6HQIhCfAy1H4fBxiGARIH_7tj5Pbnr__5qw8-e_Xrj372-tWbL95-9dffffPjD7_H6oJtKMJP_r-mvoN_gn2CRN9ay7z86ev_Al6elY5RBgAA",
+          "clickUrl": "https://open.e.kuaishou.com/rest/e/v2/open/log/click?pr=__PR__&prType=__PRTYPE__&width=__WIDTH__&height=__HEIGHT__&downX=__DOWN_X__&downY=__DOWN_Y__&upX=__UP_X__&upY=__UP_Y__&type=__TYPE__&behavior=__BEHAVIOR__&ex=s4rmm_3&adLog=H4sIAAAAAAAAAF3Su-v1dgHHcZ4Hi2gLfaCL6CKdWgLNN_dkKJjbyeXk5HZyd9BcTnJyz0lOrpN_wYOLo86lVCc3t9apg6CLUB0EFyc3JxH8ufqZP7yn13d_-d6b3_zl5396_f0v3h0gy-lyrCrQsFQXF2ZlpjP6XmToOtjTrmGN-Swyi11FUsHLw4NUMk0BicaRBc-J1a6tG_PwnShJlI3KHhiEiYpTz0L_YJwzllxPRsfpz3TK51hKqMRsCbY07kWvZ2QHa5N_1VJuS7RU6yMWL5czB4uMQFghkykuKrHF8ajkYpumKeyCLmjqhoZimzg6OjBIZAypAE0PGy4wqn04ce8zUrl6PpCe83TvkRKXaCAPZ_Pp-gPTxkxhC9xxTGyuwdH9yMOnIasuBuLueEj0g6mmrulp70lfisuBBE9HBbIW06qAGLWkiY5M9AxRzvgsbUJ25-trC9xqH_1q1GyQk7bZupzKiEIoxAx3R1UTS9vgwKFbs4ijD5RNQO9jckisEovJVDHcs1sRQ9-Gq6OcrCqHFqOZdYljUv4lQYyx8hCS6gZwUrUEeryrsnK5leZ8UQ8cnAv9bvphgm03naeyUiEEdd2ONG4u0woL3CMnHnsACPMUVWFw6vjc2wbILwGWMwMulwlqJnbH8lR_bi3xUHcuy0fdx_zQOBvk8qiGfF8XliE1NhsnXxKmGeNFhlogQOOXFsdF9W5hi-8TYYiSWdr3OdOo4FRo0t1oA1nMEj4EmpPcQ1vA5gt6atyIbObrWa00sxZliXfLVHyIJ8LDBmjHQoMb8GIMLDuokf1WW6LZw8NyTqA7YxC75pR-jMJYeJkAKux8q8vbJkQEHzOd4CwOlXh0DNf2te31di6b8BKW1dIja-GdQDsGo7UIXlniBEQvGCD0wYs2UFQKrQQ-1qqEO2eOHFOsYTjxoIhE57Ql9UQGLskLwcEPYUaTjdKrYSnirZZV2XuBrOblTm3mlQifvkid6SjGNJarEiTscvcGOSMzHzhmrGyEE49tPJYysDMN873hmhaho5pEwG-TcyXxJTOFvuQjIfRjSILMPPSwu06zYkCfpGLlFSiTFhVXhb3G1iyW46rPzvhpVOR4viUyje6qsPguERyOg6eKfXIx20VDlW9Z4xxXDFpXjpMWDENW2UhTMFsgL8SbBaCwsvG5PdXICCmyXm3801mEYETY2TPZNRFHRvfmHmXOfDhlipbtKtdu-W5168DZQChqd6qeEehCTYlhVd8R-jrNhKUegL_MnGyZhQ1zoltA2xweA1pqkrLWMOUT5dX1ii2A7HJqiJWJh33shYlyXwy3-0ukHDIJptLjhOn70WWoMHv6clMs_hpJjFEQW1Y3wqHnHHK9PBWP4lO-5K9zdokOBSyXwDhWuyYIsZue8FZZjT1Droylh1PCiq63tGNIT4jIVMoN2dFDKRmJ3Z43NPoJSEw9g87LeQdcy3QYHrnlWhHjZxtpe3CG4tvZYo4gluLb09hCfqHTVaYFg-o3Z1ug-366Ze0h7TNXeLw0XTG5rg0rXukrk-aSOtNNQg_VIq7BwHKeXPo1e9gOFzWzbNpcbsoOzOpoVilKIxXjHbk8KfDpD1-BP_7h79-8fUX_4uu3__j2j778979-_9uv_vO3H0TvYwRFYDSgAYKQDAaSN3R8u6EMSFGciCkcRT5__bH6HQIhCfAy1H4fBxiGARIH_7tj5Pbnr__5qw8-e_Xrj372-tWbL95-9dffffPjD7_H6oJtKMJP_r-mvoN_gn2CRN9ay7z86ev_Al6elY5RBgAA",
+          "convUrl": "https://open.e.kuaishou.com/rest/e/v2/open/log/conv?action=__ACTION__&pr=__PR__&prType=__PRTYPE__&type=__TYPE__&behavior=__BEHAVIOR__&ex=s4rmm_3&adLog=H4sIAAAAAAAAAF3Su-v1dgHHcZ4Hi2gLfaCL6CKdWgLNN_dkKJjbyeXk5HZyd9BcTnJyz0lOrpN_wYOLo86lVCc3t9apg6CLUB0EFyc3JxH8ufqZP7yn13d_-d6b3_zl5396_f0v3h0gy-lyrCrQsFQXF2ZlpjP6XmToOtjTrmGN-Swyi11FUsHLw4NUMk0BicaRBc-J1a6tG_PwnShJlI3KHhiEiYpTz0L_YJwzllxPRsfpz3TK51hKqMRsCbY07kWvZ2QHa5N_1VJuS7RU6yMWL5czB4uMQFghkykuKrHF8ajkYpumKeyCLmjqhoZimzg6OjBIZAypAE0PGy4wqn04ce8zUrl6PpCe83TvkRKXaCAPZ_Pp-gPTxkxhC9xxTGyuwdH9yMOnIasuBuLueEj0g6mmrulp70lfisuBBE9HBbIW06qAGLWkiY5M9AxRzvgsbUJ25-trC9xqH_1q1GyQk7bZupzKiEIoxAx3R1UTS9vgwKFbs4ijD5RNQO9jckisEovJVDHcs1sRQ9-Gq6OcrCqHFqOZdYljUv4lQYyx8hCS6gZwUrUEeryrsnK5leZ8UQ8cnAv9bvphgm03naeyUiEEdd2ONG4u0woL3CMnHnsACPMUVWFw6vjc2wbILwGWMwMulwlqJnbH8lR_bi3xUHcuy0fdx_zQOBvk8qiGfF8XliE1NhsnXxKmGeNFhlogQOOXFsdF9W5hi-8TYYiSWdr3OdOo4FRo0t1oA1nMEj4EmpPcQ1vA5gt6atyIbObrWa00sxZliXfLVHyIJ8LDBmjHQoMb8GIMLDuokf1WW6LZw8NyTqA7YxC75pR-jMJYeJkAKux8q8vbJkQEHzOd4CwOlXh0DNf2te31di6b8BKW1dIja-GdQDsGo7UIXlniBEQvGCD0wYs2UFQKrQQ-1qqEO2eOHFOsYTjxoIhE57Ql9UQGLskLwcEPYUaTjdKrYSnirZZV2XuBrOblTm3mlQifvkid6SjGNJarEiTscvcGOSMzHzhmrGyEE49tPJYysDMN873hmhaho5pEwG-TcyXxJTOFvuQjIfRjSILMPPSwu06zYkCfpGLlFSiTFhVXhb3G1iyW46rPzvhpVOR4viUyje6qsPguERyOg6eKfXIx20VDlW9Z4xxXDFpXjpMWDENW2UhTMFsgL8SbBaCwsvG5PdXICCmyXm3801mEYETY2TPZNRFHRvfmHmXOfDhlipbtKtdu-W5168DZQChqd6qeEehCTYlhVd8R-jrNhKUegL_MnGyZhQ1zoltA2xweA1pqkrLWMOUT5dX1ii2A7HJqiJWJh33shYlyXwy3-0ukHDIJptLjhOn70WWoMHv6clMs_hpJjFEQW1Y3wqHnHHK9PBWP4lO-5K9zdokOBSyXwDhWuyYIsZue8FZZjT1Droylh1PCiq63tGNIT4jIVMoN2dFDKRmJ3Z43NPoJSEw9g87LeQdcy3QYHrnlWhHjZxtpe3CG4tvZYo4gluLb09hCfqHTVaYFg-o3Z1ug-366Ze0h7TNXeLw0XTG5rg0rXukrk-aSOtNNQg_VIq7BwHKeXPo1e9gOFzWzbNpcbsoOzOpoVilKIxXjHbk8KfDpD1-BP_7h79-8fUX_4uu3__j2j778979-_9uv_vO3H0TvYwRFYDSgAYKQDAaSN3R8u6EMSFGciCkcRT5__bH6HQIhCfAy1H4fBxiGARIH_7tj5Pbnr__5qw8-e_Xrj372-tWbL95-9dffffPjD7_H6oJtKMJP_r-mvoN_gn2CRN9ay7z86ev_Al6elY5RBgAA",
+          "enableSkipAd": 0,
+          "skipSecond": 30,
+          "ecpm": 0,
+          "productName": "充电得宝",
+          "appDownloadCountDesc": "5345次下载",
+          "expParam": "{\"drawActionBarTimes\":\"2,1,2\",\"videoBlackAreaClick\":0,\"videoBlackAreaNewStyle\":0,\"showVideoAtH5\":0,\"endCardNewStyle\":0, \"endCardNewStyleBackgroundColor\":\"rgba(0,0,0,0.7)\", \"endCardNewStyleBlur\":10}",
+          "adActionBarColor": "#28a7cc",
+          "adMarkIcon": "https://static.yximgs.com/udata/pkg/ad-universe-cdn/adMarkIcon.png",
+          "adGrayMarkIcon": "https://static.yximgs.com/udata/pkg/ad-universe-cdn/adGrayMarkIcon.png",
+          "adAttributeType": 0,
+          "videoPlayedNS": "3,5",
+          "appCategory": "系统",
+          "appDescription": "充电得宝是一款实用电池健康应用，智能充电模式，系统信息一手知，电池健康技巧时刻提醒，为您的手机电池提供全天候保护。【一键省电】电池健康度查询，一键全面省电，延长手机待机时间；【充电模式】快充慢充任心选，保证您的电池安全；【知识课堂】轻松获得电池小知识，建立优秀使用习惯；",
+          "appImageUrl": [
+            "https://static.yximgs.com/udata/pkg/d2bea6e35bea929eb79a8fee7d2564a1",
+            "https://static.yximgs.com/udata/pkg/e04c39019e36471da6b3e87cc7a43618",
+            "https://static.yximgs.com/udata/pkg/da4bc9bb5eea6422c7105e9bef4559eb",
+            "https://static.yximgs.com/udata/pkg/d5f88943ff1e814c82424ea96741af60"
+          ],
+          "appImageSize": {
+            "width": 480,
+            "height": 800
+          },
+          "appId": 2289916,
+          "appVersion": "2.1.6",
+          "packageSize": 33522053,
+          "corporationName": "广州小迈网络科技有限公司"
+        },
+        "adMaterialInfo": {
+          "materialType": 1,
+          "materialFeature": [
+            {
+              "广告视频materialUrl": "https://txmov2.a.yximgs.com/upic/2020/10/26/23/BMjAyMDEwMjYyMzAxMThfMjA5NzM5MDg2OV8zODMwODIxMDUxM18wXzM=_b_Ba96c8563edb478f7429b42d753e4f91d.mp4?tag=1-1604126941-unknown-0-kv3quqsf01-c2bea750b6ed7d55&clientCacheKey=3x6y4n393tfep6k_b.mp4&tt=b&di=6f12cfdc&bp=13290",
+              "广告封面coverUrl": "http://static.yximgs.com/udata/pkg/admarketfirstphotoframeebe16d6988bd4404a53df23742eebaf3.jpg",
+              "materialSize": {
+                "width": 360,
+                "height": 640
+              },
+              "featureType": 1,
+              "videoDuration": 66,
+              "videoDurationMs": 65800,
+              "广告封面firstFrame": "https://tx2.a.yximgs.com/upic/2020/10/26/23/BMjAyMDEwMjYyMzAxMThfMjA5NzM5MDg2OV8zODMwODIxMDUxM18wXzM=_ff_Bde9a08d0f90476baae8e1a49adb1b8d9.webp?tag=1-1604126941-unknown-0-m3xvlsg4me-3d4708c582fda38b&clientCacheKey=3x6y4n393tfep6k_ff.webp&di=6f12cfdc&bp=13290",
+              "videoWidth": 720,
+              "videoHeight": 1280,
+              "photoId": 38308210513,
+              "likeCount": 69681,
+              "commentCount": 0,
+              "ruleId": 1,
+              "source": 0
+            }
+          ]
+        },
+        "advertiserInfo": {
+          "userId": 2097390869,
+          "userName": "@充电赚了好几百",
+          "rawUserName": "充电赚了好几百",
+          "accountId": 8022871,
+          "userGender": "F",
+          "portraitUrl": "https://static.yximgs.com/s1/i/def/head_f.png",
+          "adAuthorText": "@充电赚了好几百创造的原声",
+          "authorIconGuide": "https://static.yximgs.com/udata/pkg/ks-ad-ssp/app_guide_3x.png"
+        },
+        "adStyleInfo": {
+          "playDetailInfo": {
+            "type": 1,
+            "detailTopToolBarInfo": {
+              "callButtonShowTime": 0,
+              "callButtonDescription": "免费获取"
+            },
+            "detailWebCardInfo": {
+              "maxTimeOut": 1500,
+              "cardUrl": "https://static.yximgs.com/s1/htmls/dynamic-card-ad-union-video-page/dynamic-card-ad-union-video-page-96e1ca66e6.html",
+              "typePortrait": 3,
+              "typeLandscape": 3,
+              "cardData": "{}"
+            }
+          },
+          "playEndInfo": {
+            "showLandingPage": 0,
+            "showLandingPage2": 0,
+            "type": 1,
+            "adWebCardInfo": {
+              "typeLandscape": 1,
+              "typePortrait": 6,
+              "cardUrl": "https://static.yximgs.com/s1/htmls/ad-union-trailer-page-center/ad-union-trailer-page-center-1f779ff276.html",
+              "cardDelayTime": 5000,
+              "cardShowTime": 300000,
+              "cardData": "{\"leftButtonText\": \"查看详情\"}"
+            },
+            "endTopToolBarInfo": {
+              "callButtonDescription": "免费获取"
+            }
+          },
+          "feedAdInfo": null
+        },
+        "adPreloadInfo": {
+          "preloadId": "photoId_38308210513",
+          "preloadType": 0,
+          "preloadTips": "已提前加载",
+          "validityPeriod": 604800
+        },
+        "downloadSafeInfo": {
+          "permissionInfo": "允许程序访问电话状态\n允许程序更改系统设置\n允许程序访问摄像头进行拍照\n允许程序录制声音通过手机或耳机的麦克\n允许程序可以读取设备外部存储空间\n允许程序写入外部存储，如SD卡上写文件\n",
+          "appPrivacyUrl": "http://ibestfanli.com/scenead_frontend_service/common?funid=30&appid=1&prdid=18121&type=2",
+          "windowPopType": 0,
+          "windowPopUrl": "https://static.yximgs.com/s1/htmls/ad-union-download-confirm/ad-union-download-confirm-2bf46276b1.html",
+          "downloadPauseEnable": false,
+          "webPageTipbarSwitch": false,
+          "webPageTipbarText": "您访问的网站由第三方提供"
+        }
+      }
+    ],
+    "contentType": 2
+  }
+]
+

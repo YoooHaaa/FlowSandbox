@@ -1,0 +1,126 @@
+[
+  {
+    "type": 0,
+    "adStyle": 1,
+    "posId": 5165000183,
+    "adInfo": [
+      {
+        "adTrackInfo": [
+          {
+            "type": 2,
+            "url": [
+              "https://promotion-partner.kuaishou.com/rest/n/promotion/p?adid=6483&campaignId=23166383&adgroupId=85688201&creativeId=734209089&imei=__IMEI2__&idfa=__IDFA2__&oaid=__OAID__&ip=101.229.4.171&mac=__MAC2__&androidId=__ANDROIDID2__&callback=http%3A%2F%2Fad.partner.gifshow.com%2Ftrack%2Factivate%3Fcallback%3D8aYnrDkSz2RLRlv0BF0tmYWUFfXBZQ0qfJqJw4o5Q0zgQjzFkBZ23AcmDBEViYaDopBYs807DBTXiJ5U0mTjYTa6xwqvB1_X8SUB9QWlK8HO2w9bhTVCZ3IEJ3vVvUMhaLTB8kUnEz7FUT8AMp-Q7Ta8JZ_14ZbCTnhfYg5-lyU"
+            ]
+          }
+        ],
+        "adConversionInfo": {
+          "h5Url": "https://static.yximgs.com/s1/htmls/feed-joint-landing-page/feed-joint-landing-page-ee708d0628.html?callback=8aYnrDkSz2RLRlv0BF0tmYWUFfXBZQ0qfJqJw4o5Q0zgQjzFkBZ23AcmDBEViYaDopBYs807DBTXiJ5U0mTjYTa6xwqvB1_X8SUB9QWlK8HO2w9bhTVCZ3IEJ3vVvUMhaLTB8kUnEz7FUT8AMp-Q7Ta8JZ_14ZbCTnhfYg5-lyU",
+          "deeplinkUrl": "",
+          "appDownloadUrl": "https://js.a.kspkg.com/bs2/fes/kuaishou-mini-ANT_CLYQ_ZT_KS,7745368_1-release-8.1.20.16682_9f647f.apk",
+          "marketUrl": "",
+          "h5Type": 1
+        },
+        "adBaseInfo": {
+          "creativeId": 734209089,
+          "accountId": 7745368,
+          "adSourceType": 1,
+          "adDescription": "这首歌又火了!赶快打开快手听一听",
+          "adSourceDescription": "广告",
+          "adOperationType": 1,
+          "adShowDuration": 0,
+          "appIconUrl": "http://static.yximgs.com/udata/pkg/5f3b3642e4bb47989f0a48c8c54796c4.png",
+          "appName": "快手",
+          "appPackageName": "com.smile.gifmaker",
+          "appScore": 0,
+          "adActionDescription": "一键下载",
+          "showUrl": "https://open.e.kuaishou.com/rest/e/v2/open/log/show?pr=__PR__&prType=__PRTYPE__&type=__TYPE__&behavior=__BEHAVIOR__&ex=4488k_3&adLog=H4sIAAAAAAAAAF2SuQrtCAFAeQ-ncIF5YCPaiJUSmJs9ucWA2febfbXQ3ORm3_ekEu10ZuqpLKxEFD_AQsRG8A9ExC8QLEQLC5-tpz6c6nzpR1959_s_fvLXt1___MtR4XdiESk2QW8Z2mf-YKrnhiLnIEF4eEx6utWRmsc6M040PSI519WMZvmow4Ks1VBMUQf6kvFwkGQu3rSQV3ARYBuV1tuag2NWYnPJUnB4Mo0TIWhlNDUqpGboGVfHTFOm09JpKBpFmU3LpGYY-Hq9FoBPNWChfLsjG8PqVtwDOCIWx0yqahJ-HnCMoZsnFCur9YhfF7iQw0ObVmTykIcifZyPJWOk_kY1LoVlDTFD2K15SWinupeobPJennq0pJsTAZ0rczY0ZGjSzjtx6IafNhfGHXVP8WmyYUTu3z3G5hrSHVB_vjgzUVGoHTwl6xMBkLMOP2h91S8m46-WJVrFfyTXmWgQTFGtWXl7d4eK2BbqWHSsyqXOShtjKjSFaAYyehMhfrtWttCyCJRdU6bHWLv4ridTwuKbvia5A0rLcvNNmZwHJN7xeCIPKYmaotCKmNSvHqHj81Z05skAVtfeQzO_2lhUGrp6WEpH3SMlgHJerVVguSdHr5UdXN7S-jQghOOW87arxx6SsrBPod-4KNU9HEUygEe9v0YqDvFyEI8SEhtNsroNWpII2XavjtIxlBw8G6OFq5bmiSycFaqWXowEkwKFqtxera9Ufa3YXRQnGM2JgD9gwHQ4AEDkYJU-Vzfx-2XDYS2O-OdpsLDOM9aF5_BN4bn9mLfl1m57gJ8i7If8DkuqGUbPUGG8Dh-neHEoDWS5uhjd2V54wmUIkYRpw4APp23YO7SdTGnMyoboWUzxwYtf5dt86KliNN2oQrOuonnJ4hVukYHieA8GTN25WgzU6WRPuC6DXWqv3mKX5KXAxNmx6IzQI-cwo_Qzl-INY5WZG1lgY2cpNx6pGdUbNwWJyaTpCpIo_NQ2yRXPLUixEjie_dj7ZIvsBu7JO-6QBMhcxWFNrAtiOD46jsFWEJYtosCL3OOpTtkttBng_RvcRTm3yVfLOecT-SwXXjxAjOpghGhzIIEr50EMN4FdUasubqQ1yGvipWFzGcGqBdFDNSvSz17sMKLcBCCzhBUC3J0jnEzhubfA6ISyJpwmKzs2FeEomXKyJ8HHqlOKj-Z3sXiCHKV165nBJSC4HDXLT1BJkrTidg1i26Qag-dW22DmIeXOaJmx3rHjuacc7RssCvv-Ibo0seKjL1trK1R63lIPQrEveWl7kzvAC-4TUQgAH2LLagfHaI57gQI1TyvGJgBP2UkyJ2cHL2iLl1N3XeJU8LiDuDEswOUiUP7CwSUUcMbl8n4qfJVdX2IhW4kfmGiOhhgbWnznsF23OU1iXCaiOhQ1rdrt0al3OqSk8amjpxNlZK0vstlmeXOv4ev1VPkeza5cf0DL7G0SAk0KN9myob0s0NSYwQB5fcWzhgmu3urz-pL83CYJGu1IMxCVWpXuRkF7Z1megrG6KhZfS6DHzrZGjtE8xcFGA6aV1Pr9noSff_zxN9-QP_30n7_54Lv_-PlPfvfj__z7b9-IPkQwAkNIkAQhCL8j4PMdGb9e8B1MYBSLCRSGfvn2O_IXMQjHwPfA1ocoiCAIiKPg_3QEP_71p7__7Ku_ePPrb__w7Zt3v_rsD3_57Z-_962vUQ_W0iX2-_9fkz9AP0I-gqIv7GVW_uDtfwHbZVKhNgYAAA",
+          "clickUrl": "https://open.e.kuaishou.com/rest/e/v2/open/log/click?pr=__PR__&prType=__PRTYPE__&width=__WIDTH__&height=__HEIGHT__&downX=__DOWN_X__&downY=__DOWN_Y__&upX=__UP_X__&upY=__UP_Y__&type=__TYPE__&behavior=__BEHAVIOR__&ex=4488k_3&adLog=H4sIAAAAAAAAAF2SuQrtCAFAeQ-ncIF5YCPaiJUSmJs9ucWA2febfbXQ3ORm3_ekEu10ZuqpLKxEFD_AQsRG8A9ExC8QLEQLC5-tpz6c6nzpR1959_s_fvLXt1___MtR4XdiESk2QW8Z2mf-YKrnhiLnIEF4eEx6utWRmsc6M040PSI519WMZvmow4Ks1VBMUQf6kvFwkGQu3rSQV3ARYBuV1tuag2NWYnPJUnB4Mo0TIWhlNDUqpGboGVfHTFOm09JpKBpFmU3LpGYY-Hq9FoBPNWChfLsjG8PqVtwDOCIWx0yqahJ-HnCMoZsnFCur9YhfF7iQw0ObVmTykIcifZyPJWOk_kY1LoVlDTFD2K15SWinupeobPJennq0pJsTAZ0rczY0ZGjSzjtx6IafNhfGHXVP8WmyYUTu3z3G5hrSHVB_vjgzUVGoHTwl6xMBkLMOP2h91S8m46-WJVrFfyTXmWgQTFGtWXl7d4eK2BbqWHSsyqXOShtjKjSFaAYyehMhfrtWttCyCJRdU6bHWLv4ridTwuKbvia5A0rLcvNNmZwHJN7xeCIPKYmaotCKmNSvHqHj81Z05skAVtfeQzO_2lhUGrp6WEpH3SMlgHJerVVguSdHr5UdXN7S-jQghOOW87arxx6SsrBPod-4KNU9HEUygEe9v0YqDvFyEI8SEhtNsroNWpII2XavjtIxlBw8G6OFq5bmiSycFaqWXowEkwKFqtxera9Ufa3YXRQnGM2JgD9gwHQ4AEDkYJU-Vzfx-2XDYS2O-OdpsLDOM9aF5_BN4bn9mLfl1m57gJ8i7If8DkuqGUbPUGG8Dh-neHEoDWS5uhjd2V54wmUIkYRpw4APp23YO7SdTGnMyoboWUzxwYtf5dt86KliNN2oQrOuonnJ4hVukYHieA8GTN25WgzU6WRPuC6DXWqv3mKX5KXAxNmx6IzQI-cwo_Qzl-INY5WZG1lgY2cpNx6pGdUbNwWJyaTpCpIo_NQ2yRXPLUixEjie_dj7ZIvsBu7JO-6QBMhcxWFNrAtiOD46jsFWEJYtosCL3OOpTtkttBng_RvcRTm3yVfLOecT-SwXXjxAjOpghGhzIIEr50EMN4FdUasubqQ1yGvipWFzGcGqBdFDNSvSz17sMKLcBCCzhBUC3J0jnEzhubfA6ISyJpwmKzs2FeEomXKyJ8HHqlOKj-Z3sXiCHKV165nBJSC4HDXLT1BJkrTidg1i26Qag-dW22DmIeXOaJmx3rHjuacc7RssCvv-Ibo0seKjL1trK1R63lIPQrEveWl7kzvAC-4TUQgAH2LLagfHaI57gQI1TyvGJgBP2UkyJ2cHL2iLl1N3XeJU8LiDuDEswOUiUP7CwSUUcMbl8n4qfJVdX2IhW4kfmGiOhhgbWnznsF23OU1iXCaiOhQ1rdrt0al3OqSk8amjpxNlZK0vstlmeXOv4ev1VPkeza5cf0DL7G0SAk0KN9myob0s0NSYwQB5fcWzhgmu3urz-pL83CYJGu1IMxCVWpXuRkF7Z1megrG6KhZfS6DHzrZGjtE8xcFGA6aV1Pr9noSff_zxN9-QP_30n7_54Lv_-PlPfvfj__z7b9-IPkQwAkNIkAQhCL8j4PMdGb9e8B1MYBSLCRSGfvn2O_IXMQjHwPfA1ocoiCAIiKPg_3QEP_71p7__7Ku_ePPrb__w7Zt3v_rsD3_57Z-_962vUQ_W0iX2-_9fkz9AP0I-gqIv7GVW_uDtfwHbZVKhNgYAAA",
+          "convUrl": "https://open.e.kuaishou.com/rest/e/v2/open/log/conv?action=__ACTION__&pr=__PR__&prType=__PRTYPE__&type=__TYPE__&behavior=__BEHAVIOR__&ex=4488k_3&adLog=H4sIAAAAAAAAAF2SuQrtCAFAeQ-ncIF5YCPaiJUSmJs9ucWA2febfbXQ3ORm3_ekEu10ZuqpLKxEFD_AQsRG8A9ExC8QLEQLC5-tpz6c6nzpR1959_s_fvLXt1___MtR4XdiESk2QW8Z2mf-YKrnhiLnIEF4eEx6utWRmsc6M040PSI519WMZvmow4Ks1VBMUQf6kvFwkGQu3rSQV3ARYBuV1tuag2NWYnPJUnB4Mo0TIWhlNDUqpGboGVfHTFOm09JpKBpFmU3LpGYY-Hq9FoBPNWChfLsjG8PqVtwDOCIWx0yqahJ-HnCMoZsnFCur9YhfF7iQw0ObVmTykIcifZyPJWOk_kY1LoVlDTFD2K15SWinupeobPJennq0pJsTAZ0rczY0ZGjSzjtx6IafNhfGHXVP8WmyYUTu3z3G5hrSHVB_vjgzUVGoHTwl6xMBkLMOP2h91S8m46-WJVrFfyTXmWgQTFGtWXl7d4eK2BbqWHSsyqXOShtjKjSFaAYyehMhfrtWttCyCJRdU6bHWLv4ridTwuKbvia5A0rLcvNNmZwHJN7xeCIPKYmaotCKmNSvHqHj81Z05skAVtfeQzO_2lhUGrp6WEpH3SMlgHJerVVguSdHr5UdXN7S-jQghOOW87arxx6SsrBPod-4KNU9HEUygEe9v0YqDvFyEI8SEhtNsroNWpII2XavjtIxlBw8G6OFq5bmiSycFaqWXowEkwKFqtxera9Ufa3YXRQnGM2JgD9gwHQ4AEDkYJU-Vzfx-2XDYS2O-OdpsLDOM9aF5_BN4bn9mLfl1m57gJ8i7If8DkuqGUbPUGG8Dh-neHEoDWS5uhjd2V54wmUIkYRpw4APp23YO7SdTGnMyoboWUzxwYtf5dt86KliNN2oQrOuonnJ4hVukYHieA8GTN25WgzU6WRPuC6DXWqv3mKX5KXAxNmx6IzQI-cwo_Qzl-INY5WZG1lgY2cpNx6pGdUbNwWJyaTpCpIo_NQ2yRXPLUixEjie_dj7ZIvsBu7JO-6QBMhcxWFNrAtiOD46jsFWEJYtosCL3OOpTtkttBng_RvcRTm3yVfLOecT-SwXXjxAjOpghGhzIIEr50EMN4FdUasubqQ1yGvipWFzGcGqBdFDNSvSz17sMKLcBCCzhBUC3J0jnEzhubfA6ISyJpwmKzs2FeEomXKyJ8HHqlOKj-Z3sXiCHKV165nBJSC4HDXLT1BJkrTidg1i26Qag-dW22DmIeXOaJmx3rHjuacc7RssCvv-Ibo0seKjL1trK1R63lIPQrEveWl7kzvAC-4TUQgAH2LLagfHaI57gQI1TyvGJgBP2UkyJ2cHL2iLl1N3XeJU8LiDuDEswOUiUP7CwSUUcMbl8n4qfJVdX2IhW4kfmGiOhhgbWnznsF23OU1iXCaiOhQ1rdrt0al3OqSk8amjpxNlZK0vstlmeXOv4ev1VPkeza5cf0DL7G0SAk0KN9myob0s0NSYwQB5fcWzhgmu3urz-pL83CYJGu1IMxCVWpXuRkF7Z1megrG6KhZfS6DHzrZGjtE8xcFGA6aV1Pr9noSff_zxN9-QP_30n7_54Lv_-PlPfvfj__z7b9-IPkQwAkNIkAQhCL8j4PMdGb9e8B1MYBSLCRSGfvn2O_IXMQjHwPfA1ocoiCAIiKPg_3QEP_71p7__7Ku_ePPrb__w7Zt3v_rsD3_57Z-_962vUQ_W0iX2-_9fkz9AP0I-gqIv7GVW_uDtfwHbZVKhNgYAAA",
+          "enableSkipAd": 0,
+          "skipSecond": 30,
+          "ecpm": 0,
+          "productName": "快手APP",
+          "appDownloadCountDesc": "22.0亿次下载",
+          "expParam": "{\"drawActionBarTimes\":\"2,1,2\",\"videoBlackAreaClick\":0,\"videoBlackAreaNewStyle\":0,\"showVideoAtH5\":0,\"endCardNewStyle\":0, \"endCardNewStyleBackgroundColor\":\"rgba(0,0,0,0.7)\", \"endCardNewStyleBlur\":10}",
+          "adActionBarColor": "#",
+          "adMarkIcon": "https://static.yximgs.com/udata/pkg/ad-universe-cdn/adMarkIcon.png",
+          "adGrayMarkIcon": "https://static.yximgs.com/udata/pkg/ad-universe-cdn/adGrayMarkIcon.png",
+          "adAttributeType": 0,
+          "videoPlayedNS": "3,5",
+          "appCategory": "视频",
+          "appDescription": "新！ &ldquo;快手焕新&rdquo;\n\n新版本：\n- 多入口：满足更多内容需求，给你更多启发，打开新世界\n- 沉浸上下滑：新增优质内容沉浸体验，发现更大的世界\n- 瀑布流：保持快手的熟悉感，看见熟悉的世界\n\n「有趣视频，一看就上瘾」\n好看的、好玩的，好笑的短视频，都在这。\n\n「一起同框，越玩越有戏」\n随时随地多人同框，搭戏模仿，有趣更有戏。\n\n「互动直播，有你更出众」\n随时随地侃大山，好看的小哥哥小姐姐都爱玩的直播在这里。\n\n「支持原创，潇洒做自己」\n脑洞大、才艺多，有绝活，给你大舞台。\n\n「美颜滤镜，拍出你的美」\n30款美颜滤镜，上百种魔法表情；要萌要酷随你变，怎么变都好看。",
+          "appImageUrl": [
+            "https://static.yximgs.com/udata/pkg/72b79168de328af1ba707c7ddc4aaad5",
+            "https://static.yximgs.com/udata/pkg/1c8e6b7977b380e9a4a5d49039329f96",
+            "https://static.yximgs.com/udata/pkg/65b837d58330f1b824beaabbc372cb01",
+            "https://static.yximgs.com/udata/pkg/f0c144066d63cf2d03923e5ea05232bf",
+            "https://static.yximgs.com/udata/pkg/35097508eeec1e7f024b18c151a32ce6"
+          ],
+          "appImageSize": {
+            "width": 480,
+            "height": 800
+          },
+          "appId": 1762807,
+          "appVersion": "8.1.20.16682",
+          "packageSize": 10548823,
+          "corporationName": "北京达佳互联信息技术有限公司"
+        },
+        "adMaterialInfo": {
+          "materialType": 2,
+          "materialFeature": [
+            {
+              "materialUrl": "http://static.yximgs.com/udata/pkg/0922df105ded47c3ab3918568fceeb86.jpg",
+              "coverUrl": "",
+              "materialSize": {
+                "width": 1280,
+                "height": 720
+              },
+              "featureType": 2,
+              "videoDuration": 0,
+              "videoDurationMs": 0,
+              "videoWidth": 0,
+              "videoHeight": 0,
+              "photoId": 0,
+              "likeCount": 0,
+              "commentCount": 0,
+              "ruleId": 2,
+              "source": 0
+            }
+          ]
+        },
+        "advertiserInfo": {
+          "userId": 1442662027,
+          "userName": "@kwai运营同学",
+          "rawUserName": "kwai运营同学",
+          "accountId": 7745368,
+          "userGender": "M",
+          "portraitUrl": "https://static.yximgs.com/s1/i/def/head_m.png",
+          "adAuthorText": "@kwai运营同学创造的原声",
+          "authorIconGuide": "https://static.yximgs.com/udata/pkg/ks-ad-ssp/app_guide_3x.png"
+        },
+        "adStyleInfo": {
+          "playDetailInfo": null,
+          "playEndInfo": null,
+          "feedAdInfo": null
+        },
+        "adPreloadInfo": {
+          "preloadId": "creativeId_734209089_rid2",
+          "preloadType": 0,
+          "preloadTips": null,
+          "validityPeriod": 604800
+        },
+        "downloadSafeInfo": {
+          "permissionInfo": "允许程序通过GPS芯片接收卫星的定位信息\n允许程序写入外部存储，如SD卡上写文件\n允许程序更改系统设置\n允许程序录制声音通过手机或耳机的麦克\n允许程序从非系统拨号器里拨打电话\n允许程序访问电话状态\n允许程序可以读取设备外部存储空间\n允许程序读取短信内容\n允许程序访问摄像头进行拍照\n",
+          "appPrivacyUrl": "https://www.gifshow.com/i/sp/agrm",
+          "windowPopType": 0,
+          "windowPopUrl": "https://static.yximgs.com/s1/htmls/ad-union-download-confirm/ad-union-download-confirm-2bf46276b1.html",
+          "downloadPauseEnable": false,
+          "webPageTipbarSwitch": false,
+          "webPageTipbarText": "您访问的网站由第三方提供"
+        }
+      }
+    ],
+    "contentType": 2
+  }
+]
+

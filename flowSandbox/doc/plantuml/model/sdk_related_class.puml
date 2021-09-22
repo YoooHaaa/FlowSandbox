@@ -1,0 +1,9 @@
+@startuml sdk_related_class
+scale 2
+class SdkRelatedInfo {
+    String sdk_version
+    String slot_id
+    String ad_type
+    String ad_scene
+}
+@enduml

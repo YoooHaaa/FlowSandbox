@@ -1,0 +1,318 @@
+{
+  "requestInterval": 3600,
+  "egid": "",
+  "abConfig": {
+    "toolbarSwitch": 1,
+    "likeButtonSwitch": 1,
+    "moreButtonSwitch": 1,
+    "commentButtonSwitch": 1,
+    "seekBarSwitch": 59,
+    "videoCacheSwitch": 1,
+    "pkgNameList": [
+      "com.android.chrome",
+      "com.ss.android.ugc.aweme",
+      "com.smile.gifmaker"
+    ],
+    "batchReportCatchLimit": 20,
+    "tipConfig": {
+      "tipShowSwitch": 1,
+      "tipInfo": null
+    },
+    "preloadSwitch": 1,
+    "hostList": [
+      "gifshow.com",
+      "kuaishou.com",
+      "static.yximgs.com"
+    ],
+    "posContentInfoList": [
+      {
+        "posId": 5165000094,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000031,
+        "adPhotoCountForMedia": 2,
+        "enablePreload": true
+      },
+      {
+        "posId": 5165000018,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000019,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000016,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000017,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000022,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000343,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000087,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000023,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000020,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000021,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000267,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000584,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000207,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000450,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000064,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000582,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000583,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000580,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000581,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000058,
+        "adPhotoCountForMedia": 2,
+        "enablePreload": true
+      },
+      {
+        "posId": 5165000184,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000056,
+        "adPhotoCountForMedia": 2,
+        "enablePreload": true
+      },
+      {
+        "posId": 5165000185,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000063,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000178,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000435,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000179,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000176,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000177,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000054,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000183,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000436,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000180,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000053,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000168,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000174,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000175,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000172,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000173,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000097,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      },
+      {
+        "posId": 5165000033,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": true
+      },
+      {
+        "posId": 5165000167,
+        "adPhotoCountForMedia": 0,
+        "enablePreload": false
+      }
+    ],
+    "uiType": 3,
+    "mediaPlayerLogReport": 0,
+    "mediaPlayerActionSwitch": 0,
+    "rewardTopBarNewStyle": 0,
+    "convertEnableStrongPatch": 0,
+    "playerEnable": false,
+    "replayTubeEpisode": 0,
+    "playerConfig": {
+      "maxCacheBytes": 157286400,
+      "startPlayBlockBufferMs": 300,
+      "maxBufferCostMs": 500,
+      "preloadDuration": 3000,
+      "cacheDownloadConnectTimeoutMs": 3000,
+      "cacheDownloadReadTimeoutMs": 15000,
+      "maxBufferTimeBspMs": 3000,
+      "playerLoadThreshold": 819200
+    },
+    "homePlaySpeedTime": 90,
+    "homePlaySpeed": 0.0,
+    "homePlayCompleteType": 0,
+    "authorProfileSwitch": 1,
+    "liveSwitch": 0,
+    "playFinishRealTimeReport": 1,
+    "slideLeftSwitch": 1,
+    "exceptionCollectorSwitch": 1,
+    "tabRefresh": 0,
+    "trendDynamicEffect": 0,
+    "backRefreshSwitch": 1,
+    "relatedSwitch": 2,
+    "entrySwipeJumpIndex": 4,
+    "mobileNetTipSwitch": 0,
+    "rewardFullClickSwitch": 0,
+    "closeDelaySeconds": 0,
+    "profileGuideConfig": null,
+    "profileGuideSwitch": 1,
+    "didCopySwitch": 1,
+    "slideCoverSwitch": 0,
+    "profileAdSwitch": 1,
+    "middleEndcardShowTime": 0,
+    "webpSoUrl": null,
+    "dynamicEnable": false,
+    "emotionEnable": true,
+    "realtimeReportActions": "",
+    "securitySdkSwitch": 1,
+    "speedLimitSwitch": 1,
+    "speedLimitThreshold": 100,
+    "rewardAdVideoPreCacheSize": 0
+  },
+  "templateConfig": {
+    "h5Url": "https://static.yximgs.com/s1/htmls/ad-union-feed-template/ad-union-feed-template-f8735ee0f0.html",
+    "h5Version": "1603794882390",
+    "h5Checksum": "f8735ee0f0"
+  },
+  "splashConfig": {
+    "h5Url": "https://static.yximgs.com/s1/htmls/ad-union-splash-page-v1/ad-union-splash-page-v1-c9ce41d1d2.html",
+    "h5Version": "1002",
+    "h5Checksum": "c9ce41d1d2"
+  },
+  "rewardMiniCardConfig": {
+    "h5Url": "https://static.yximgs.com/s1/htmls/ad-union-minicard-v1/ad-union-minicard-v1-2516a88276.html",
+    "h5Version": "1603794149390",
+    "h5Checksum": "2516a88276"
+  },
+  "rewardMiddleEndcardConfig": {
+    "h5Url": "https://static.yximgs.com/s1/htmls/ad-union-preEndCard-v1/ad-union-preEndCard-v1-6414282da9.html",
+    "h5Version": "1603795118368",
+    "h5Checksum": "6414282da9"
+  }
+}
+

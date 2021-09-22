@@ -1,0 +1,26 @@
+{
+  "known_ad_platforms": {
+    "baidu": {
+      "enabled": true,
+      "rules": {
+        ".*\\.mobads.baidu.com/ads/.*": true
+      }
+    },
+    "tencent": {
+      "enabled": true,
+      "rules": {
+        ".*\\.gdt\\.qq\\.com/.*": true
+      }
+    },
+    "bytedance": {
+      "enabled": true,
+      "rules": {
+        ".*\\.snssdk\\.com/api/ad/.*": true,
+        ".*\\.pstatp\\.com/.*": true,
+        ".*\\.pangolin-dsp-toutiao.com/.*": true,
+        ".*\\.pglstatp-toutiao\\.com/.*": true,
+        ".*api-access\\.pangolin-sdk-toutiao\\.com/api/ad/.*": true
+      }
+    }
+  }
+}

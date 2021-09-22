@@ -1,0 +1,11 @@
+@startuml ad_info_class
+scale 2
+class AdInfo {
+    String title
+    String description
+    String ad_url
+    String ad_screenshot
+    String ad_pic_url
+    String ad_pic_file
+}
+@enduml

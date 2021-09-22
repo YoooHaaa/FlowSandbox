@@ -1,0 +1,26 @@
+@startuml summary_state
+scale 1
+
+state 安卓手机{
+    目标app -right-> proxydroid:流量转发
+}
+proxydroid --> PC:流量转发
+state PC{
+
+    state 沙箱{
+        mitmproxy-down->流量解析插件插件:流量转发
+        流量解析插件插件-down->数据库:结构化存储结果
+        state 流量解析插件插件{
+            state 广告内容抓取插件
+        }
+        state 伪装插件{
+            state IP伪装插件
+            state GPS伪装插件
+            state 网络环境伪装插件
+        }
+        伪装插件 --> mitmproxy:提供伪装功能
+    }
+
+}
+
+@enduml

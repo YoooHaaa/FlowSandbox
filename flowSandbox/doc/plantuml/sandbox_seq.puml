@@ -1,0 +1,15 @@
+@startuml sandbox_seq
+participant "运营人员" as operator
+participant "手机" as mobile
+participant "沙箱" as tweezer
+participant "目标app" as target_app
+
+operator -> mobile:连接手机至pc
+tweezer -> mobile:安装proxydroid
+tweezer -> mobile:安装mitm根证书
+operator->tweezer:选择设备和代理IP
+loop n times
+    operator->target_app:打开目标app
+    tweezer->target_app:开始代理app流量
+end
+@enduml

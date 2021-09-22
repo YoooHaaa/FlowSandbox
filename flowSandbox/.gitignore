@@ -1,0 +1,16 @@
+tweezer/__pycache__
+*.pyc
+.idea
+output
+tweezer/runtime
+.DS_Store
+build/
+dist/
+log/
+tweezer.egg-info
+runtime
+tweezer-0.0.1.dist-info
+tweezer/resource/installation_pkg/adb_tool
+.vs
+test/tweezer
+*.pdf

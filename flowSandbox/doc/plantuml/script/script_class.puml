@@ -1,0 +1,28 @@
+@startuml script_class
+scale 2
+class BaseScript{
+    String device_id
+    void init_config()
+    void init_adb()
+    void init_log()
+    void init_device()
+    void init_output_dir()
+    void load_plugin()
+    void start_app_monitor()
+    void request()
+    void response()
+}
+
+class EmulatorScript{
+
+}
+
+class PhoneScript{
+    ProxyDroid proxydroid
+    String ip
+    int port
+}
+
+BaseScript <|-- EmulatorScript
+BaseScript <|-- PhoneScript
+@enduml

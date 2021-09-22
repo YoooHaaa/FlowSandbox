@@ -1,0 +1,20 @@
+@startmindmap
+scale 2
+* plugin
+** base
+*** base plugin
+*** base hotkey plugin
+** ad
+*** gdt
+*** toutiao
+*** tuia
+*** weli
+** hotkey
+*** screenshot
+*** save net flow
+*** switch ip
+*** random gps
+*** switch traffic type
+** general
+*** ad discover
+@endmindmap

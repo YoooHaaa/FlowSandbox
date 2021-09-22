@@ -1,0 +1,7 @@
+@startmindmap resource_arch
+scale 2
+* resource
+** constant
+** runtime
+** dir
+@endmindmap

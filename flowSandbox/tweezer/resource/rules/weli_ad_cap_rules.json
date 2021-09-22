@@ -1,0 +1,33 @@
+{
+  "ad_pool": {
+    "http://pc.suishenyun.net/peacock/api/adspool.*": true
+  },
+  "zhwnl_ad_1": {
+    "https://v0-client-lz.rili.cn/lizhi/api/zhwnl/v3.4/daily.*": true
+  },
+  "zhwnl_ad_2": {
+    "http://pc.suishenyun.net/peacock/api/zhwnl/cal_module/datas": true
+  },
+  "coin_ads": {
+    "https://wltask.weilitoutiao.net/wltask/api/coin/ads/operation": true
+  },
+  "subtitle": {
+    "mine_tab_banner": true,
+    "app_bottom_tab_ad": true,
+    "mine_tab_invite_code_right": true,
+    "search_icon": true,
+    "red_packet_recommend": true,
+    "mine_tab_middle_operation": true,
+    "home_tab_headline_icon": true,
+    "headline_top_icons": true,
+    "mine_tab_apprentice_card_left": true,
+    "make_money_tab": true,
+    "search_text": true
+  },
+  "popup": {
+    "popup": true
+  },
+  "ad_get": {
+    "https://ads.weilitoutiao.net/kuaima_ads/api/ad/get/v2": true
+  }
+}
